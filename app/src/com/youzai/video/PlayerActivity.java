@@ -370,6 +370,7 @@ public class PlayerActivity extends Activity {
                 if (size.height > 0 && size.width > 0) {
                     videoAspect = size.width * size.pixelWidthHeightRatio / size.height;
                     applyResize();
+                    if (fullscreen) applyFsOrientation();
                     int m = Math.min(size.width, size.height);
                     String tier = m >= 2000 ? " · 4K" : m >= 1000 ? " · 1080P"
                             : m >= 700 ? " · 720P" : m >= 400 ? " · 480P" : "";
@@ -549,6 +550,17 @@ public class PlayerActivity extends Activity {
                         | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
     }
 
+    // Fullscreen follows the video's own shape: portrait videos (short
+    // dramas) fullscreen in portrait, landscape videos in landscape.
+    private void applyFsOrientation() {
+        if (!fullscreen) return;
+        if (videoAspect > 0 && videoAspect < 1f) {
+            setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+        } else {
+            setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+        }
+    }
+
     // The player starts as a floating small window over the page; the
     // fullscreen button expands it (and switches to landscape) on demand.
     private void setFullscreen(boolean fs) {
@@ -560,7 +572,7 @@ public class PlayerActivity extends Activity {
             lp.height = WindowManager.LayoutParams.MATCH_PARENT;
             lp.dimAmount = 0f;
             getWindow().clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
-            setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+            applyFsOrientation();
             immersive();
         } else {
             android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
