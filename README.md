@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.14-brightgreen" alt="version">
+  <img src="https://img.shields.io/badge/version-1.15-brightgreen" alt="version">
   <img src="https://img.shields.io/badge/Android-8.0%2B-blue" alt="android">
   <img src="https://img.shields.io/badge/player-ExoPlayer%20(media3)-purple" alt="player">
   <img src="https://img.shields.io/badge/license-GPL--3.0-orange" alt="license">

@@ -58,6 +58,8 @@ public class PlayerActivity extends Activity {
     private boolean controlsShown = true;
     private long lastTapUp = 0;
     private final Runnable pendingTapToggle = () -> { showControls(!controlsShown); pokeControls(); };
+    private boolean boosting = false;
+    private final Runnable boostStarter = () -> startBoost();
     private boolean scrubbing = false;
 
     // resize modes: 0 fit, 1 fill(crop), 2 stretch, 3 force 16:9, 4 force 4:3
@@ -316,8 +318,28 @@ public class PlayerActivity extends Activity {
 
         root.setOnTouchListener((v, e) -> {
             if (locked) {
-                if (e.getAction() == android.view.MotionEvent.ACTION_UP) flashUnlock();
-                return true;
+                // Locked: no controls, but long-press boost still works.
+                switch (e.getAction()) {
+                    case android.view.MotionEvent.ACTION_DOWN:
+                        downX = e.getX();
+                        downY = e.getY();
+                        ui.removeCallbacks(boostStarter);
+                        ui.postDelayed(boostStarter, 450);
+                        return true;
+                    case android.view.MotionEvent.ACTION_MOVE:
+                        if (Math.abs(e.getX() - downX) > 24 || Math.abs(e.getY() - downY) > 24) {
+                            ui.removeCallbacks(boostStarter);
+                        }
+                        return true;
+                    case android.view.MotionEvent.ACTION_UP:
+                    case android.view.MotionEvent.ACTION_CANCEL:
+                        ui.removeCallbacks(boostStarter);
+                        if (boosting) endBoost();
+                        else if (e.getAction() == android.view.MotionEvent.ACTION_UP) flashUnlock();
+                        return true;
+                    default:
+                        return true;
+                }
             }
             switch (e.getAction()) {
                 case android.view.MotionEvent.ACTION_DOWN:
@@ -326,12 +348,16 @@ public class PlayerActivity extends Activity {
                     downTime = System.currentTimeMillis();
                     seeking = false;
                     if (player != null) seekBase = player.getCurrentPosition();
+                    ui.removeCallbacks(boostStarter);
+                    ui.postDelayed(boostStarter, 450);
                     return true;
                 case android.view.MotionEvent.ACTION_MOVE: {
                     if (player == null) return false;
                     float dx = e.getX() - downX, dy = e.getY() - downY;
+                    if (Math.abs(dx) > 24 || Math.abs(dy) > 24) ui.removeCallbacks(boostStarter);
                     if (!seeking && Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5f) {
                         seeking = true;
+                        if (boosting) endBoost();
                     }
                     if (seeking) {
                         long dur = player.getDuration();
@@ -348,6 +374,12 @@ public class PlayerActivity extends Activity {
                 }
                 case android.view.MotionEvent.ACTION_UP:
                 case android.view.MotionEvent.ACTION_CANCEL: {
+                    ui.removeCallbacks(boostStarter);
+                    if (boosting) {
+                        endBoost();
+                        pokeControls();
+                        return true;
+                    }
                     if (seeking) {
                         seeking = false;
                         gestureView.setVisibility(View.GONE);
@@ -611,6 +643,25 @@ public class PlayerActivity extends Activity {
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
             seekRow.setVisibility(View.VISIBLE);
         }
+    }
+
+    // Long-press boost: hold the screen to fast-forward, release to
+    // restore the user's chosen speed. Works while locked too.
+    private void startBoost() {
+        if (player == null || !player.isPlaying() || boosting) return;
+        boosting = true;
+        float cur = SPEEDS[speedIdx];
+        float boost = cur >= 2.0f ? 3.0f : 2.0f;
+        player.setPlaybackSpeed(boost);
+        gestureView.setText("⏩ " + speedLabel(boost) + " 快进中");
+        gestureView.setVisibility(View.VISIBLE);
+    }
+
+    private void endBoost() {
+        if (!boosting) return;
+        boosting = false;
+        if (player != null) player.setPlaybackSpeed(SPEEDS[speedIdx]);
+        if (!seeking) gestureView.setVisibility(View.GONE);
     }
 
     private void pokeControls() {
