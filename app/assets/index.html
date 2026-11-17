@@ -547,7 +547,8 @@ function renderSrc() {
     + '<button class="big" id="cfgSave">保存导入</button>'
     + (configs.some(c => c.builtin) ? "" : '<button class="big" id="cfgRestore" style="background:#2a2a2a;border:1px solid #3a3a3a;margin-top:9px">恢复内置资源</button>')
     + '<div class="lbl">支持 TVBox 格式配置里的 JSON / XML 站点（type 0 / 1）；依赖 jar 蜘蛛的站点（type 3）用不了，会在站点列表里标出来。</div>'
-    + "</div>";
+    + "</div>"
+    + '<div class="hint" style="margin-top:16px">免责声明：本应用为通用播放器，不提供任何影视内容；内容来自内置或你配置的第三方数据源，版权归原权利人所有。请确保你的使用符合当地法律法规。</div>';
   box.innerHTML = html;
   box.querySelectorAll("[data-use]").forEach(b => b.onclick = () => {
     activeCfgId = b.dataset.use; saveConfigs(); loadActiveConfig(); refreshSiteBtn(); renderSrc();

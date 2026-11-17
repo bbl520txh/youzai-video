@@ -1,27 +1,22 @@
 <p align="center">
-  <img src="docs/icon.png" width="120" alt="友仔影视">
-</p>
-
-<h1 align="center">友仔影视</h1>
-
-<p align="center">
-  一个极简的 Android 影视播放器：TVBox 配置导入 + 内置资源站 + ExoPlayer 播放内核。
+  <img src="docs/banner.png" alt="友仔影视 — 极简 TVBox 播放器">
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.6-brightgreen" alt="version">
+  <img src="https://img.shields.io/badge/version-1.7-brightgreen" alt="version">
   <img src="https://img.shields.io/badge/Android-8.0%2B-blue" alt="android">
+  <img src="https://img.shields.io/badge/player-ExoPlayer%20(media3)-purple" alt="player">
   <img src="https://img.shields.io/badge/license-GPL--3.0-orange" alt="license">
 </p>
 
 ## 这是什么
 
-友仔影视是一个空壳播放器：
+友仔影视是一个**极简的空壳播放器**：
 
-- **内置 15 个已验证的资源站**（maccms 接口），装好打开就能用，不需要任何配置；
-- **站点名单自动更新**：app 启动时会拉取本仓库的 `stations.json`，名单有新版就自动替换，站点失效不用等 app 更新；
+- **内置一份资源站名单**，装好打开就能用，不需要任何配置；
+- **站点名单自动更新**：app 启动时会拉取本仓库的 `stations.json`，名单有新版就自动替换 — 站点失效不用等 app 发新版；
 - 也可以**导入你自己的 TVBox 配置**（地址拉取 / 粘贴 / 本地文件），支持 type 0（XML）/ type 1（JSON）站点；依赖 jar 蜘蛛的 type 3 站点不支持，会在列表里标出来；
-- 本 app **不提供、不存储任何影视内容**，所有内容来自你使用的资源站接口。
+- 本软件**不生产、不存储、不分发任何影视内容**，播放内容来自你使用的数据源。详见 [免责声明](DISCLAIMER.md)。
 
 ## 功能
 
@@ -56,6 +51,10 @@ bash build.sh
 ## 站点名单
 
 名单文件就是仓库根目录的 `stations.json`（同时也是 app 内置名单的来源）。想增删站点，改这个文件并把 `_bv` 数字加 1 推送，装了 app 的设备下次打开就会自动更新。
+
+## 免责声明
+
+本软件为通用播放工具，不提供任何影视内容；内容版权归原权利人所有，使用者应确保其使用符合所在地法律法规。完整声明见 [DISCLAIMER.md](DISCLAIMER.md)。
 
 ## 许可证
 
