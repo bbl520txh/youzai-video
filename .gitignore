@@ -1,0 +1,14 @@
+# build output
+app/build/
+*.apk
+!releases/*.apk
+
+# signing keys - never commit your keystore
+*.keystore
+
+# fetched media3 dependencies (re-fetched by fetch_deps.py)
+deps/
+
+# local junk
+.DS_Store
+*.idsig

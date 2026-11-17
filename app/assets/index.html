@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>友仔影视</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { background:#121212; color:#eee; font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif; }
+  body { padding-bottom:20px; }
+  button { font-family:inherit; }
+  .topbar { position:sticky; top:0; z-index:30; background:#121212; padding:10px 12px 6px; }
+  .brandrow { display:flex; align-items:center; gap:8px; }
+  .brand { font-size:19px; font-weight:700; margin-right:auto; }
+  .brand span { color:#1DB954; }
+  .navbtn { background:#232323; color:#ddd; border:1px solid #333; border-radius:16px; padding:6px 13px; font-size:13px; }
+  .navbtn.on { background:#1DB954; color:#fff; border-color:#1DB954; font-weight:700; }
+  .siterow { display:flex; gap:8px; margin-top:9px; }
+  .sitebtn { flex:1; background:#1d1d1d; border:1px solid #2e2e2e; color:#eee; border-radius:10px; padding:9px 12px; font-size:14px; text-align:left; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .searchrow { display:flex; gap:8px; margin-top:8px; }
+  .searchrow input { flex:1; background:#1d1d1d; border:1px solid #2e2e2e; border-radius:10px; color:#eee; padding:10px 12px; font-size:14px; outline:none; }
+  .searchrow button { background:#1DB954; color:#fff; border:none; border-radius:10px; padding:0 18px; font-size:14px; font-weight:700; }
+  .cats { display:flex; gap:8px; overflow-x:auto; padding:10px 12px 2px; scrollbar-width:none; }
+  .cats::-webkit-scrollbar { display:none; }
+  .chip { flex:0 0 auto; background:#232323; color:#ccc; border:1px solid #333; border-radius:14px; padding:5px 13px; font-size:13px; }
+  .chip.on { background:#1DB954; color:#fff; border-color:#1DB954; font-weight:700; }
+  .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; padding:12px; }
+  .card { background:#1b1b1b; border-radius:10px; overflow:hidden; }
+  .card .pic { position:relative; aspect-ratio:3/4.2; background:#262626; }
+  .card .pic img { width:100%; height:100%; object-fit:cover; display:block; }
+  .card .rmk { position:absolute; right:0; bottom:0; background:rgba(0,0,0,.72); color:#ffd76a; font-size:11px; padding:2px 6px; border-radius:6px 0 0 0; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .card .nm { font-size:13px; padding:7px 8px 8px; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; min-height:36px; }
+  .more { display:block; margin:2px auto 10px; background:#232323; color:#ddd; border:1px solid #333; border-radius:18px; padding:9px 30px; font-size:14px; }
+  .hint { color:#999; font-size:13px; text-align:center; padding:26px 30px; line-height:1.7; }
+  .hint b { color:#ddd; }
+  .err { color:#ff8a75; }
+  /* detail */
+  .detail { padding:12px; }
+  .dhead { display:flex; gap:12px; }
+  .dhead img { width:104px; aspect-ratio:3/4.2; object-fit:cover; border-radius:10px; background:#262626; }
+  .dmeta { flex:1; min-width:0; }
+  .dmeta h2 { font-size:18px; line-height:1.4; }
+  .dmeta p { color:#aaa; font-size:12.5px; margin-top:5px; line-height:1.55; }
+  .intro { color:#bbb; font-size:13px; line-height:1.65; margin-top:12px; }
+  .lines { display:flex; gap:8px; overflow-x:auto; padding:14px 0 4px; scrollbar-width:none; }
+  .lines::-webkit-scrollbar { display:none; }
+  .eps { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:10px; }
+  .ep { background:#232323; border:1px solid #333; color:#eee; border-radius:9px; padding:10px 4px; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .ep.played { border-color:#1DB954; color:#8be09f; }
+  .resume { color:#ffd76a; font-size:12.5px; margin-top:8px; }
+  /* list rows (history & sources) */
+  .row { display:flex; align-items:center; gap:10px; background:#1b1b1b; border-radius:10px; padding:10px 12px; margin:0 12px 9px; }
+  .row img { width:44px; aspect-ratio:3/4.2; object-fit:cover; border-radius:6px; background:#262626; }
+  .row .tt { flex:1; min-width:0; }
+  .row .tt .a { font-size:14.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .row .tt .b { color:#999; font-size:12px; margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .row .del { background:none; border:none; color:#888; font-size:17px; padding:6px; }
+  .row .act { background:#1DB954; color:#fff; border:none; border-radius:8px; padding:6px 12px; font-size:13px; }
+  .sect { font-size:15px; font-weight:700; margin:16px 12px 10px; }
+  .form { margin:0 12px; background:#1b1b1b; border-radius:10px; padding:12px; }
+  .form input, .form textarea { width:100%; background:#121212; border:1px solid #333; border-radius:8px; color:#eee; padding:9px 10px; font-size:14px; margin-bottom:9px; outline:none; }
+  .form textarea { height:110px; resize:vertical; }
+  .form .big { width:100%; background:#1DB954; color:#fff; border:none; border-radius:9px; padding:11px; font-size:15px; font-weight:700; }
+  .form .lbl { color:#999; font-size:12.5px; margin:8px 0 6px; }
+  .sitesheet { position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:50; display:none; }
+  .sitesheet .panel { position:absolute; left:0; right:0; bottom:0; max-height:70vh; overflow-y:auto; background:#1c1c1c; border-radius:16px 16px 0 0; padding:14px 12px 20px; }
+  .siteitem { padding:12px 10px; border-bottom:1px solid #2a2a2a; font-size:15px; display:flex; gap:8px; align-items:center; }
+  .siteitem .tag { font-size:11px; color:#ffb35c; border:1px solid #6b4a1f; border-radius:6px; padding:1px 5px; }
+  .siteitem.cur { color:#1DB954; font-weight:700; }
+  .toast { position:fixed; left:50%; bottom:60px; transform:translateX(-50%); background:#333; color:#fff; padding:9px 18px; border-radius:20px; font-size:14px; z-index:99; display:none; max-width:86vw; text-align:center; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brandrow">
+    <div class="brand">友仔<span>影视</span></div>
+    <button class="navbtn" id="navHome">首页</button>
+    <button class="navbtn" id="navHist">历史</button>
+    <button class="navbtn" id="navSrc">源</button>
+  </div>
+  <div class="siterow" id="siteRow">
+    <button class="sitebtn" id="siteBtn">未导入数据源</button>
+  </div>
+  <div class="searchrow" id="searchRow">
+    <input id="searchInput" placeholder="搜索片名…" enterkeyhint="search">
+    <button id="searchBtn">搜索</button>
+  </div>
+</div>
+
+<div id="viewHome">
+  <div class="cats" id="cats"></div>
+  <div class="grid" id="grid"></div>
+  <div class="hint" id="homeHint"></div>
+  <button class="more" id="moreBtn" style="display:none">加载更多</button>
+</div>
+
+<div id="viewDetail" style="display:none"></div>
+<div id="viewHist" style="display:none"></div>
+<div id="viewSrc" style="display:none"></div>
+
+<div class="sitesheet" id="siteSheet"><div class="panel" id="sitePanel"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* ============ storage ============ */
+function lsGet(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }
+function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+let configs = lsGet("yzv_configs", []);        // [{id,name,raw}]
+let activeCfgId = lsGet("yzv_active", "");
+let history = lsGet("yzv_history", []);        // [{cfg,site,siteName,id,name,pic,line,ep,positions:{line:ep:ms},at}]
+let cfgObj = null;                             // parsed active config
+let curSite = null;                            // current site object
+let curSiteKey = lsGet("yzv_site", "");
+
+function activeConfig() { return configs.find(c => c.id === activeCfgId) || configs[0] || null; }
+function saveConfigs() { lsSet("yzv_configs", configs); lsSet("yzv_active", activeCfgId); }
+
+/* Built-in station pack bundled with the app (assets/default_config.json):
+   auto-added unless the user deleted it (tombstone), auto-refreshed when a
+   newer app version ships a newer pack (_bv). */
+function syncBuiltin() {
+  try {
+    if (localStorage.getItem("yzv_nobuiltin") === "1") return;
+    const bt = NativeBridge.builtinConfig();
+    if (!bt) return;
+    const bv = JSON.parse(bt)._bv || 0;
+    const bi = configs.findIndex(c => c.builtin);
+    if (bi < 0) configs.unshift({ id: "builtin", name: "内置资源", raw: bt, builtin: true, bv: bv });
+    else if ((configs[bi].bv || 0) < bv) { configs[bi].raw = bt; configs[bi].bv = bv; }
+  } catch (e) {}
+}
+syncBuiltin();
+function saveHistory() { lsSet("yzv_history", history.slice(0, 100)); }
+
+/* ============ native http ============ */
+let reqSeq = 0; const reqWait = {};
+window.__onNativeResponse = function (id, res) {
+  const w = reqWait[id]; if (!w) return; delete reqWait[id];
+  if (res && !res.error && res.status >= 200 && res.status < 400) w.ok(res.body);
+  else w.fail(new Error((res && (res.error || ("HTTP " + res.status))) || "网络错误"));
+};
+function httpGet(url, timeout) {
+  return new Promise((ok, fail) => {
+    if (window.NativeBridge && NativeBridge.request) {
+      const id = "r" + (++reqSeq);
+      reqWait[id] = { ok, fail };
+      setTimeout(() => { if (reqWait[id]) { delete reqWait[id]; fail(new Error("请求超时")); } }, (timeout || 20000) + 4000);
+      NativeBridge.request(id, JSON.stringify({ url, timeout: timeout || 20000 }));
+    } else {
+      fetch(url).then(r => r.text()).then(ok).catch(fail);
+    }
+  });
+}
+
+/* ============ helpers ============ */
+const $ = id => document.getElementById(id);
+function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.style.display = "block"; clearTimeout(t._h); t._h = setTimeout(() => t.style.display = "none", 2400); }
+function vibrate() { try { navigator.vibrate && navigator.vibrate(8); } catch (e) {} }
+function fmtMs(ms) { const s = Math.floor(ms / 1000); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), ss = s % 60; return (h > 0 ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(ss).padStart(2, "0"); }
+
+/* TVBox configs in the wild often carry // comments and trailing commas */
+function lenientParse(text) {
+  text = String(text || "").replace(/^﻿/, "");
+  try { return JSON.parse(text); } catch (e) {}
+  let t = text.split("\n").filter(l => !l.trim().startsWith("//")).join("\n");
+  t = t.replace(/,\s*([}\]])/g, "$1");
+  return JSON.parse(t);
+}
+function siteUsable(s) { return s && (s.type === 0 || s.type === 1) && typeof s.api === "string" && /^https?:\/\//i.test(s.api); }
+function siteList() { return (cfgObj && Array.isArray(cfgObj.sites)) ? cfgObj.sites : []; }
+
+function loadActiveConfig() {
+  cfgObj = null; curSite = null;
+  const c = activeConfig();
+  if (!c) return;
+  activeCfgId = c.id;
+  try { cfgObj = lenientParse(c.raw); } catch (e) { cfgObj = null; }
+  if (!cfgObj) return;
+  const sites = siteList();
+  curSite = sites.find(s => s.key === curSiteKey && siteUsable(s)) || sites.find(siteUsable) || null;
+  if (curSite) curSiteKey = curSite.key;
+}
+/* ============ maccms client (type1 JSON / type0 XML) ============ */
+function apiUrl(site, params) {
+  const qs = Object.keys(params).filter(k => params[k] !== undefined && params[k] !== "")
+    .map(k => k + "=" + encodeURIComponent(params[k])).join("&");
+  return site.api + (site.api.includes("?") ? "&" : "?") + qs;
+}
+function txtOf(parent, tag) { const el = parent.querySelector(tag); return el ? el.textContent.trim() : ""; }
+function normItem(v) { return { id: String(v.vod_id), name: v.vod_name || "", pic: v.vod_pic || "", remarks: v.vod_remarks || "" }; }
+function parseEps(str) {
+  return String(str || "").split("#").map((seg, i) => {
+    const p = seg.indexOf("$");
+    if (p >= 0) return { name: seg.slice(0, p) || ("第" + (i + 1) + "集"), url: seg.slice(p + 1).trim() };
+    return { name: "第" + (i + 1) + "集", url: seg.trim() };
+  }).filter(e => e.url);
+}
+function normDetail(v) {
+  const froms = String(v.vod_play_from || "").split("$$$");
+  const urls = String(v.vod_play_url || "").split("$$$");
+  const lines = froms.map((f, i) => ({ from: f || ("线路" + (i + 1)), eps: parseEps(urls[i] || "") })).filter(l => l.eps.length);
+  return {
+    id: String(v.vod_id), name: v.vod_name || "", pic: v.vod_pic || "",
+    remarks: v.vod_remarks || "", intro: String(v.vod_content || v.vod_blurb || "").replace(/<[^>]+>/g, ""),
+    year: v.vod_year || "", area: v.vod_area || "", actor: v.vod_actor || "",
+    director: v.vod_director || "", typeName: v.vod_class || "", lines
+  };
+}
+async function cmsList(site, opt) {
+  opt = opt || {};
+  const params = { ac: "list", pg: opt.pg || 1 };
+  if (opt.t) params.t = opt.t;
+  if (opt.wd) params.wd = opt.wd;
+  const txt = await httpGet(apiUrl(site, params));
+  if (site.type === 1) {
+    const d = JSON.parse(txt);
+    return {
+      classes: (d.class || []).map(c => ({ id: String(c.type_id), name: c.type_name })),
+      items: (d.list || []).map(normItem), pagecount: d.pagecount || 1
+    };
+  }
+  const doc = new DOMParser().parseFromString(txt, "text/xml");
+  const classes = Array.from(doc.querySelectorAll("class ty")).map(el => ({ id: el.getAttribute("id"), name: el.textContent.trim() }));
+  const listEl = doc.querySelector("list");
+  const items = Array.from(doc.querySelectorAll("list > video")).map(v => ({
+    id: txtOf(v, "id"), name: txtOf(v, "name"), pic: txtOf(v, "pic"),
+    remarks: txtOf(v, "note") || txtOf(v, "state")
+  }));
+  return { classes, items, pagecount: listEl ? (parseInt(listEl.getAttribute("pagecount") || "1", 10) || 1) : 1 };
+}
+async function cmsSearch(site, wd, pg) {
+  if (site.type === 1) {
+    try {
+      const txt = await httpGet(apiUrl(site, { ac: "detail", wd: wd, pg: pg || 1 }));
+      const d = JSON.parse(txt);
+      if (d && Array.isArray(d.list)) return { items: d.list.map(normItem), pagecount: d.pagecount || 1 };
+      throw new Error("bad");
+    } catch (e) {
+      const r = await cmsList(site, { wd: wd, pg: pg });
+      return { items: r.items, pagecount: r.pagecount };
+    }
+  }
+  const r = await cmsList(site, { wd: wd, pg: pg });
+  return { items: r.items, pagecount: r.pagecount };
+}
+async function cmsDetail(site, id) {
+  const txt = await httpGet(apiUrl(site, { ac: "detail", ids: id }));
+  if (site.type === 1) {
+    const d = JSON.parse(txt);
+    const v = (d.list || [])[0];
+    if (!v) throw new Error("这个片子没有详情");
+    return normDetail(v);
+  }
+  const doc = new DOMParser().parseFromString(txt, "text/xml");
+  const v = doc.querySelector("video");
+  if (!v) throw new Error("这个片子没有详情");
+  const lines = Array.from(v.querySelectorAll("dl > dd")).map(dd => ({
+    from: dd.getAttribute("flag") || "线路", eps: parseEps(dd.textContent.trim())
+  })).filter(l => l.eps.length);
+  return {
+    id: txtOf(v, "id"), name: txtOf(v, "name"), pic: txtOf(v, "pic"),
+    remarks: txtOf(v, "note"), intro: txtOf(v, "des"), year: txtOf(v, "year"),
+    area: txtOf(v, "area"), actor: txtOf(v, "actor"), director: txtOf(v, "director"),
+    typeName: txtOf(v, "type"), lines: lines
+  };
+}
+
+/* ============ views ============ */
+let view = "home";
+let homeState = { mode: "list", t: "", pg: 1, pagecount: 1, wd: "", loading: false };
+let gridItems = [];
+let detailCtx = null;
+
+function setView(v) {
+  view = v;
+  $("viewHome").style.display = v === "home" ? "" : "none";
+  $("viewDetail").style.display = v === "detail" ? "" : "none";
+  $("viewHist").style.display = v === "hist" ? "" : "none";
+  $("viewSrc").style.display = v === "src" ? "" : "none";
+  $("siteRow").style.display = (v === "home" || v === "detail") ? "" : "none";
+  $("searchRow").style.display = v === "home" ? "" : "none";
+  $("navHome").classList.toggle("on", v === "home" || v === "detail");
+  $("navHist").classList.toggle("on", v === "hist");
+  $("navSrc").classList.toggle("on", v === "src");
+  window.scrollTo(0, 0);
+}
+
+function refreshSiteBtn() {
+  const c = activeConfig();
+  $("siteBtn").textContent = !c ? "未导入数据源 — 点此导入"
+    : !cfgObj ? "数据源解析失败 — 点此管理"
+    : !curSite ? "这个源里没有能用的站点"
+    : (curSite.name || curSite.key) + " ▾";
+}
+
+function renderCats(classes) {
+  const box = $("cats");
+  box.innerHTML = "";
+  if (!classes || !classes.length) return;
+  const all = document.createElement("button");
+  all.className = "chip" + (homeState.t === "" ? " on" : "");
+  all.textContent = "全部";
+  all.onclick = () => { homeState.t = ""; loadHome(true); };
+  box.appendChild(all);
+  classes.forEach(c => {
+    const b = document.createElement("button");
+    b.className = "chip" + (homeState.t === String(c.id) ? " on" : "");
+    b.textContent = c.name;
+    b.onclick = () => { homeState.t = String(c.id); loadHome(true); };
+    box.appendChild(b);
+  });
+}
+
+function cardHtml(item, idx) {
+  return '<div class="card" data-idx="' + idx + '"><div class="pic">'
+    + (item.pic ? '<img loading="lazy" referrerpolicy="no-referrer" src="' + esc(item.pic) + '" onerror="this.remove()">' : "")
+    + (item.remarks ? '<div class="rmk">' + esc(item.remarks) + "</div>" : "")
+    + '</div><div class="nm">' + esc(item.name) + "</div></div>";
+}
+
+async function loadHome(reset) {
+  if (!curSite) {
+    $("grid").innerHTML = ""; $("cats").innerHTML = ""; $("moreBtn").style.display = "none";
+    $("homeHint").innerHTML = configs.length
+      ? "当前数据源里没有能用的站点（只支持 TVBox 配置里的 JSON / XML 站点，jar 蜘蛛站点用不了）。"
+      : "还没有数据源。<br><br>点右上角 <b>「源」</b>，把你的 TVBox 配置地址粘贴进来导入，<br>就能选站看片了。";
+    return;
+  }
+  if (homeState.loading) return;
+  homeState.loading = true;
+  if (reset) { homeState.pg = 1; gridItems = []; $("grid").innerHTML = ""; }
+  $("homeHint").textContent = "加载中…";
+  try {
+    let r;
+    if (homeState.mode === "search") r = await cmsSearch(curSite, homeState.wd, homeState.pg);
+    else r = await cmsList(curSite, { t: homeState.t, pg: homeState.pg });
+    if (reset && r.classes) renderCats(r.classes);
+    homeState.pagecount = r.pagecount || 1;
+    const start = gridItems.length;
+    gridItems = gridItems.concat(r.items);
+    $("grid").insertAdjacentHTML("beforeend", r.items.map((it, i) => cardHtml(it, start + i)).join(""));
+    fillPics(r.items, start);
+    $("homeHint").innerHTML = gridItems.length ? "" :
+      '<span class="err">没有找到内容</span> — 换个分类或关键词试试。';
+    $("moreBtn").style.display = homeState.pg < homeState.pagecount ? "" : "none";
+  } catch (e) {
+    $("homeHint").innerHTML = '<span class="err">加载失败：' + esc(e.message || e) + "</span><br>可能是这个站点暂时连不上，换个站点或稍后再试。";
+    $("moreBtn").style.display = "none";
+  }
+  homeState.loading = false;
+}
+
+/* These stations omit vod_pic from list responses; posters live only in
+   detail data. One batched detail call (ids=a,b,c) fills a whole page. */
+async function fillPics(items, start) {
+  try {
+    if (!curSite || curSite.type !== 1) return;
+    const missing = [];
+    items.forEach((it, i) => { if (!it.pic) missing.push({ it: it, idx: start + i }); });
+    if (!missing.length) return;
+    const ids = missing.slice(0, 30).map(m => m.it.id).join(",");
+    const txt = await httpGet(apiUrl(curSite, { ac: "detail", ids: ids }));
+    const d = JSON.parse(txt);
+    const byId = {};
+    (d.list || []).forEach(v => { byId[String(v.vod_id)] = v.vod_pic || ""; });
+    missing.forEach(m => {
+      const pic = byId[String(m.it.id)];
+      if (!pic) return;
+      m.it.pic = pic;
+      const card = $("grid").querySelector('.card[data-idx="' + m.idx + '"] .pic');
+      if (card && !card.querySelector("img")) {
+        card.insertAdjacentHTML("afterbegin",
+          '<img loading="lazy" referrerpolicy="no-referrer" src="' + esc(pic) + '" onerror="this.remove()">');
+      }
+    });
+  } catch (e) { /* posters are decorative; never block the list */ }
+}
+
+$("grid").addEventListener("click", e => {
+  const card = e.target.closest(".card");
+  if (!card) return;
+  const item = gridItems[parseInt(card.dataset.idx, 10)];
+  if (item) { vibrate(); openDetail(item); }
+});
+$("moreBtn").onclick = () => { homeState.pg++; loadHome(false); };
+$("searchBtn").onclick = doSearch;
+$("searchInput").addEventListener("keydown", e => { if (e.key === "Enter") doSearch(); });
+function doSearch() {
+  const wd = $("searchInput").value.trim();
+  if (window.NativeBridge) NativeBridge.hideKeyboard();
+  homeState.mode = wd ? "search" : "list";
+  homeState.wd = wd; homeState.t = "";
+  setView("home");
+  loadHome(true);
+}
+/* ============ detail & play ============ */
+function findHist(cfg, site, id) { return history.find(h => h.cfg === cfg && h.site === site && h.id === String(id)); }
+
+async function openDetail(item) {
+  if (!curSite) { toast("先选一个站点"); return; }
+  setView("detail");
+  const box = $("viewDetail");
+  box.innerHTML = '<div class="hint">加载详情…</div>';
+  try {
+    const d = await cmsDetail(curSite, item.id);
+    detailCtx = { detail: d, line: 0, playing: null };
+    const h = findHist(activeCfgId, curSite.key, d.id);
+    if (h && h.line < d.lines.length) detailCtx.line = h.line;
+    renderDetail();
+  } catch (e) {
+    box.innerHTML = '<div class="hint"><span class="err">详情加载失败：' + esc(e.message || e) + "</span></div>";
+  }
+}
+
+function renderDetail() {
+  const d = detailCtx.detail;
+  const box = $("viewDetail");
+  const h = findHist(activeCfgId, curSite.key, d.id);
+  const li = Math.min(detailCtx.line, Math.max(0, d.lines.length - 1));
+  const line = d.lines[li];
+  const meta = [d.year, d.area, d.typeName].filter(Boolean).join(" · ");
+  let html = '<div class="detail"><div class="dhead">'
+    + (d.pic ? '<img referrerpolicy="no-referrer" src="' + esc(d.pic) + '" onerror="this.remove()">' : "")
+    + '<div class="dmeta"><h2>' + esc(d.name) + "</h2>"
+    + (d.remarks ? "<p>" + esc(d.remarks) + "</p>" : "")
+    + (meta ? "<p>" + esc(meta) + "</p>" : "")
+    + (d.actor ? "<p>主演：" + esc(d.actor) + "</p>" : "")
+    + (d.director ? "<p>导演：" + esc(d.director) + "</p>" : "")
+    + "</div></div>";
+  if (h && line && h.line === li && line.eps[h.ep]) {
+    const pos = h.positions && h.positions[h.line + ":" + h.ep];
+    html += '<div class="resume">上次看到：' + esc(line.eps[h.ep].name) + (pos ? " · " + fmtMs(pos) + " 处" : "") + " — 点这一集继续</div>";
+  }
+  if (!d.lines.length) {
+    html += '<div class="hint"><span class="err">这个片子没有可播放的线路</span></div>';
+  } else {
+    html += '<div class="lines">' + d.lines.map((l, i) =>
+      '<button class="chip' + (i === li ? " on" : "") + '" data-line="' + i + '">' + esc(l.from) + "（" + l.eps.length + "）</button>").join("") + "</div>";
+    html += '<div class="eps">' + line.eps.map((e, i) =>
+      '<button class="ep' + (h && h.line === li && i === h.ep ? " played" : "") + '" data-ep="' + i + '">' + esc(e.name) + "</button>").join("") + "</div>";
+  }
+  if (d.intro) html += '<div class="intro">' + esc(d.intro) + "</div>";
+  html += "</div>";
+  box.innerHTML = html;
+  box.querySelectorAll("[data-line]").forEach(b => b.onclick = () => { detailCtx.line = parseInt(b.dataset.line, 10); renderDetail(); });
+  box.querySelectorAll("[data-ep]").forEach(b => b.onclick = () => { vibrate(); playCurrent(li, parseInt(b.dataset.ep, 10)); });
+}
+
+function upsertHist(d, lineIdx, epIdx, positionsPatch) {
+  let h = findHist(activeCfgId, curSite.key, d.id);
+  if (!h) {
+    h = { cfg: activeCfgId, site: curSite.key, id: String(d.id), positions: {} };
+    history.unshift(h);
+  }
+  h.siteName = curSite.name || ""; h.name = d.name; h.pic = d.pic;
+  h.line = lineIdx; h.ep = epIdx; h.at = Date.now();
+  if (positionsPatch) Object.keys(positionsPatch).forEach(ei => { h.positions[lineIdx + ":" + ei] = positionsPatch[ei]; });
+  history = [h].concat(history.filter(x => x !== h));
+  saveHistory();
+}
+
+function playCurrent(lineIdx, epIdx) {
+  const d = detailCtx.detail;
+  const line = d.lines[lineIdx];
+  if (!line || !line.eps.length) return;
+  const h = findHist(activeCfgId, curSite.key, d.id);
+  const pos = {};
+  if (h && h.positions) Object.keys(h.positions).forEach(k => {
+    const parts = k.split(":");
+    if (parseInt(parts[0], 10) === lineIdx) pos[parts[1]] = h.positions[k];
+  });
+  detailCtx.playing = { line: lineIdx };
+  upsertHist(d, lineIdx, epIdx, null);
+  NativeBridge.openPlayer(JSON.stringify({
+    title: d.name,
+    names: line.eps.map(e => e.name), urls: line.eps.map(e => e.url),
+    index: epIdx, positions: pos
+  }));
+}
+
+window.__onPlayerExit = function (res) {
+  if (!res || !detailCtx || !detailCtx.playing) return;
+  upsertHist(detailCtx.detail, detailCtx.playing.line, res.index || 0, res.positions || {});
+  detailCtx.playing = null;
+  if (view === "detail") renderDetail();
+};
+
+/* ============ history view ============ */
+function renderHist() {
+  const box = $("viewHist");
+  if (!history.length) {
+    box.innerHTML = '<div class="hint">还没有播放记录。<br>看过的片子会自动记在这里，方便续播。</div>';
+    return;
+  }
+  box.innerHTML = '<div class="sect">播放历史</div>' + history.map((h, i) =>
+    '<div class="row" data-hist="' + i + '">'
+    + (h.pic ? '<img referrerpolicy="no-referrer" src="' + esc(h.pic) + '" onerror="this.remove()">' : "")
+    + '<div class="tt"><div class="a">' + esc(h.name) + '</div><div class="b">'
+    + esc(h.siteName || "") + " · 第 " + (h.ep + 1) + " 集 · " + new Date(h.at).toLocaleDateString()
+    + '</div></div><button class="del" data-del="' + i + '">✕</button></div>').join("")
+    + '<button class="more" id="histClear">清空全部</button>';
+  box.querySelectorAll("[data-del]").forEach(b => b.onclick = e => {
+    e.stopPropagation();
+    history.splice(parseInt(b.dataset.del, 10), 1); saveHistory(); renderHist();
+  });
+  const clr = $("histClear");
+  if (clr) clr.onclick = () => { history = []; saveHistory(); renderHist(); };
+  box.querySelectorAll("[data-hist]").forEach(r => r.onclick = () => {
+    const h = history[parseInt(r.dataset.hist, 10)];
+    if (!h) return;
+    if (h.cfg !== activeCfgId) {
+      if (!configs.find(c => c.id === h.cfg)) { toast("那个数据源已经被删了"); return; }
+      activeCfgId = h.cfg; saveConfigs(); loadActiveConfig();
+    }
+    const s = siteList().find(x => x.key === h.site && siteUsable(x));
+    if (!s) { toast("这个站点在这个源里找不到了"); return; }
+    curSite = s; curSiteKey = s.key; lsSet("yzv_site", curSiteKey);
+    refreshSiteBtn();
+    openDetail({ id: h.id, name: h.name, pic: h.pic });
+  });
+}
+
+/* ============ sources view ============ */
+function cfgSiteCount(raw) {
+  try { const o = lenientParse(raw); return (o.sites || []).length; } catch (e) { return -1; }
+}
+function renderSrc() {
+  const box = $("viewSrc");
+  let html = '<div class="sect">我的数据源</div>';
+  if (!configs.length) html += '<div class="hint">还没有导入任何数据源，在下面导入你的 TVBox 配置。</div>';
+  html += configs.map(c => {
+    const n = cfgSiteCount(c.raw);
+    return '<div class="row"><div class="tt"><div class="a">' + esc(c.name) + '</div><div class="b">'
+      + (n >= 0 ? n + " 个站点" : "解析失败") + (c.builtin ? " · 内置" : "") + (c.id === activeCfgId ? " · 使用中" : "") + "</div></div>"
+      + (c.id === activeCfgId ? "" : '<button class="act" data-use="' + c.id + '">切换</button>')
+      + '<button class="del" data-cdel="' + c.id + '">✕</button></div>';
+  }).join("");
+  html += '<div class="sect">导入新源</div><div class="form">'
+    + '<input id="cfgName" placeholder="给这个源起个名（可不填）">'
+    + '<input id="cfgUrl" placeholder="配置地址：粘贴 TVBox 配置的 http 链接">'
+    + '<button class="big" id="cfgFetch" style="background:#2a2a2a;border:1px solid #3a3a3a;margin-bottom:9px">拉取这个地址 ↓</button>'
+    + '<div class="lbl">或者：直接粘贴配置内容 / 选本地配置文件</div>'
+    + '<textarea id="cfgText" placeholder="配置 JSON 会出现在这里，也可以直接粘贴进来"></textarea>'
+    + '<input type="file" id="cfgFile" accept=".json,.txt,*/*" style="padding:8px 0">'
+    + '<button class="big" id="cfgSave">保存导入</button>'
+    + (configs.some(c => c.builtin) ? "" : '<button class="big" id="cfgRestore" style="background:#2a2a2a;border:1px solid #3a3a3a;margin-top:9px">恢复内置资源</button>')
+    + '<div class="lbl">支持 TVBox 格式配置里的 JSON / XML 站点（type 0 / 1）；依赖 jar 蜘蛛的站点（type 3）用不了，会在站点列表里标出来。</div>'
+    + "</div>";
+  box.innerHTML = html;
+  box.querySelectorAll("[data-use]").forEach(b => b.onclick = () => {
+    activeCfgId = b.dataset.use; saveConfigs(); loadActiveConfig(); refreshSiteBtn(); renderSrc();
+    homeState = { mode: "list", t: "", pg: 1, pagecount: 1, wd: "", loading: false };
+    toast("已切换数据源");
+  });
+  box.querySelectorAll("[data-cdel]").forEach(b => b.onclick = () => {
+    if (b.dataset.cdel === "builtin") localStorage.setItem("yzv_nobuiltin", "1");
+    configs = configs.filter(c => c.id !== b.dataset.cdel);
+    if (activeCfgId === b.dataset.cdel) activeCfgId = configs.length ? configs[0].id : "";
+    saveConfigs(); loadActiveConfig(); refreshSiteBtn(); renderSrc();
+  });
+  $("cfgFetch").onclick = async () => {
+    const url = $("cfgUrl").value.trim();
+    if (!url) { toast("先粘贴配置地址"); return; }
+    $("cfgFetch").textContent = "拉取中…";
+    try {
+      const txt = await httpGet(url, 25000);
+      $("cfgText").value = txt;
+      if (!$("cfgName").value.trim()) { try { $("cfgName").value = new URL(url).hostname; } catch (e) {} }
+      toast("拉取成功，点「保存导入」");
+    } catch (e) { toast("拉取失败：" + (e.message || e)); }
+    $("cfgFetch").textContent = "拉取这个地址 ↓";
+  };
+  $("cfgFile").onchange = e => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    const rd = new FileReader();
+    rd.onload = () => {
+      $("cfgText").value = String(rd.result || "");
+      if (!$("cfgName").value.trim()) $("cfgName").value = f.name.replace(/\.(json|txt)$/i, "");
+      toast("文件已读入，点「保存导入」");
+    };
+    rd.readAsText(f);
+  };
+  $("cfgSave").onclick = () => {
+    const raw = $("cfgText").value.trim();
+    const name = $("cfgName").value.trim();
+    const url = $("cfgUrl").value.trim();
+    if (!raw) { toast("没有配置内容 — 先拉取地址或粘贴进来"); return; }
+    let obj;
+    try { obj = lenientParse(raw); } catch (e) { toast("配置解析失败，不是有效的 TVBox 配置"); return; }
+    if (!obj || !Array.isArray(obj.sites) || !obj.sites.length) { toast("这个配置里没有站点（sites 为空）"); return; }
+    const usable = obj.sites.filter(siteUsable).length;
+    const c = { id: "c" + Date.now(), name: name || (obj.sites[0] && obj.sites[0].name) || "我的源", raw: raw, url: url };
+    configs.push(c); activeCfgId = c.id;
+    saveConfigs(); loadActiveConfig(); refreshSiteBtn();
+    toast("导入成功：" + obj.sites.length + " 个站点，其中 " + usable + " 个能用");
+    homeState = { mode: "list", t: "", pg: 1, pagecount: 1, wd: "", loading: false };
+    setView("home"); loadHome(true);
+  };
+  const rst = $("cfgRestore");
+  if (rst) rst.onclick = () => {
+    localStorage.removeItem("yzv_nobuiltin");
+    syncBuiltin(); saveConfigs(); loadActiveConfig(); refreshSiteBtn(); renderSrc();
+    toast("内置资源已恢复");
+  };
+}
+
+/* ============ site picker sheet ============ */
+$("siteBtn").onclick = () => {
+  if (!configs.length || !cfgObj) { renderSrc(); setView("src"); return; }
+  const sites = siteList();
+  $("sitePanel").innerHTML = '<div style="font-size:16px;font-weight:700;padding:2px 10px 10px">选择站点</div>'
+    + sites.map((s, i) => {
+      const ok = siteUsable(s);
+      return '<div class="siteitem' + (curSite && s.key === curSite.key ? " cur" : "") + '" data-site="' + i + '">'
+        + "<span style='flex:1'>" + esc(s.name || s.key) + "</span>"
+        + (ok ? "" : '<span class="tag">' + (s.type === 3 ? "jar 站点 · 不支持" : "不支持") + "</span>")
+        + "</div>";
+    }).join("");
+  $("siteSheet").style.display = "block";
+  $("sitePanel").querySelectorAll("[data-site]").forEach(el => el.onclick = () => {
+    const s = sites[parseInt(el.dataset.site, 10)];
+    if (!siteUsable(s)) { toast("这个站点用不了（需要 jar 蜘蛛或格式不支持）"); return; }
+    curSite = s; curSiteKey = s.key; lsSet("yzv_site", curSiteKey);
+    $("siteSheet").style.display = "none";
+    refreshSiteBtn();
+    homeState = { mode: "list", t: "", pg: 1, pagecount: 1, wd: "", loading: false };
+    setView("home"); loadHome(true);
+  });
+};
+$("siteSheet").addEventListener("click", e => { if (e.target === $("siteSheet")) $("siteSheet").style.display = "none"; });
+
+/* ============ nav & back ============ */
+$("navHome").onclick = () => {
+  homeState.mode = "list"; homeState.wd = ""; $("searchInput").value = "";
+  setView("home"); loadHome(true);
+};
+$("navHist").onclick = () => { renderHist(); setView("hist"); };
+$("navSrc").onclick = () => { renderSrc(); setView("src"); };
+window.__onNativeBack = function () {
+  if ($("siteSheet").style.display === "block") { $("siteSheet").style.display = "none"; return; }
+  if (view !== "home") { setView("home"); return; }
+  if (window.NativeBridge) NativeBridge.exitApp();
+};
+
+/* ============ init ============ */
+/* The built-in station pack also refreshes itself from the project's
+   GitHub repo: if the repo's stations.json carries a higher _bv than the
+   copy in use, it replaces it silently. Bundled copy stays as fallback. */
+const STATION_SOURCES = [
+  "https://raw.githubusercontent.com/bbl520txh/youzai-video/main/stations.json",
+  "https://cdn.jsdelivr.net/gh/bbl520txh/youzai-video@main/stations.json"
+];
+async function remoteStationCheck() {
+  try {
+    if (localStorage.getItem("yzv_nobuiltin") === "1") return;
+    const bi = configs.findIndex(c => c.builtin);
+    if (bi < 0) return;
+    for (const url of STATION_SOURCES) {
+      try {
+        const txt = await httpGet(url, 9000);
+        const obj = JSON.parse(txt);
+        if (obj && (obj._bv || 0) > (configs[bi].bv || 0) && Array.isArray(obj.sites) && obj.sites.length) {
+          configs[bi].raw = txt;
+          configs[bi].bv = obj._bv;
+          saveConfigs(); loadActiveConfig(); refreshSiteBtn();
+          toast("站点名单已自动更新（" + obj.sites.length + " 个站）");
+        }
+        return; /* first reachable source decides */
+      } catch (e) { /* try the next source */ }
+    }
+  } catch (e) {}
+}
+
+loadActiveConfig();
+refreshSiteBtn();
+setView("home");
+loadHome(true);
+remoteStationCheck();
+</script>
+</body>
+</html>
