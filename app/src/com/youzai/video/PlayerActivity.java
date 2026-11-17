@@ -43,7 +43,7 @@ public class PlayerActivity extends Activity {
     private FrameLayout root;
     private SurfaceView surface;
     private View topBar, bottomBar;
-    private LinearLayout seekRow, btnRow;
+    private LinearLayout seekRow, btnRow, centerRow;
     private TextView titleView, timeView, msgView, gestureView, resView;
     private Button playBtn, speedBtn, modeBtn, fsBtn;
     private TextView unlockBtn;
@@ -189,20 +189,6 @@ public class PlayerActivity extends Activity {
         btnRow.setGravity(Gravity.CENTER_VERTICAL);
         bottom.addView(btnRow, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-        Button prev = mkBtn("⏮");
-        prev.setOnClickListener(v -> {
-            if (player != null && player.hasPreviousMediaItem()) player.seekToPreviousMediaItem();
-            else Toast.makeText(this, "已经是第一集", Toast.LENGTH_SHORT).show();
-            pokeControls();
-        });
-        btnRow.addView(prev);
-        Button next = mkBtn("⏭");
-        next.setOnClickListener(v -> {
-            if (player != null && player.hasNextMediaItem()) player.seekToNextMediaItem();
-            else Toast.makeText(this, "已经是最后一集", Toast.LENGTH_SHORT).show();
-            pokeControls();
-        });
-        btnRow.addView(next);
         timeView = new TextView(this);
         timeView.setTextColor(0xFFDDDDDD);
         timeView.setTextSize(12);
@@ -281,15 +267,38 @@ public class PlayerActivity extends Activity {
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT,
                 Gravity.BOTTOM));
 
-        // Big center play/pause button (moved out of the bottom bar).
+        // Center control cluster: prev / play-pause / next in one row.
+        centerRow = new LinearLayout(this);
+        centerRow.setOrientation(LinearLayout.HORIZONTAL);
+        centerRow.setGravity(Gravity.CENTER_VERTICAL);
+        Button prevBtn = mkBtn("⏮");
+        prevBtn.setTextSize(22);
+        prevBtn.setBackground(ovalBg());
+        prevBtn.setOnClickListener(v -> {
+            if (player != null && player.hasPreviousMediaItem()) player.seekToPreviousMediaItem();
+            else Toast.makeText(this, "已经是第一集", Toast.LENGTH_SHORT).show();
+            pokeControls();
+        });
+        centerRow.addView(prevBtn, new LinearLayout.LayoutParams(140, 140));
         playBtn = mkBtn("⏸");
         playBtn.setTextSize(30);
-        android.graphics.drawable.GradientDrawable oval = new android.graphics.drawable.GradientDrawable();
-        oval.setShape(android.graphics.drawable.GradientDrawable.OVAL);
-        oval.setColor(0x66000000);
-        playBtn.setBackground(oval);
+        playBtn.setBackground(ovalBg());
         playBtn.setOnClickListener(v -> { togglePlay(); pokeControls(); });
-        root.addView(playBtn, new FrameLayout.LayoutParams(200, 200, Gravity.CENTER));
+        LinearLayout.LayoutParams playLp = new LinearLayout.LayoutParams(200, 200);
+        playLp.setMargins(44, 0, 44, 0);
+        centerRow.addView(playBtn, playLp);
+        Button nextBtn = mkBtn("⏭");
+        nextBtn.setTextSize(22);
+        nextBtn.setBackground(ovalBg());
+        nextBtn.setOnClickListener(v -> {
+            if (player != null && player.hasNextMediaItem()) player.seekToNextMediaItem();
+            else Toast.makeText(this, "已经是最后一集", Toast.LENGTH_SHORT).show();
+            pokeControls();
+        });
+        centerRow.addView(nextBtn, new LinearLayout.LayoutParams(140, 140));
+        root.addView(centerRow, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.CENTER));
 
         gestureView = new TextView(this);
         gestureView.setTextColor(0xFFFFFFFF);
@@ -509,6 +518,13 @@ public class PlayerActivity extends Activity {
         ui.postDelayed(tick, 500);
     }
 
+    private android.graphics.drawable.GradientDrawable ovalBg() {
+        android.graphics.drawable.GradientDrawable d = new android.graphics.drawable.GradientDrawable();
+        d.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+        d.setColor(0x66000000);
+        return d;
+    }
+
     private Button mkBtn(String text) {
         Button b = new Button(this);
         b.setText(text);
@@ -572,7 +588,7 @@ public class PlayerActivity extends Activity {
         controlsShown = show;
         topBar.setVisibility(show ? View.VISIBLE : View.GONE);
         bottomBar.setVisibility(show ? View.VISIBLE : View.GONE);
-        if (playBtn != null) playBtn.setVisibility(show ? View.VISIBLE : View.GONE);
+        if (centerRow != null) centerRow.setVisibility(show ? View.VISIBLE : View.GONE);
         if (!show) immersive();
     }
 
@@ -634,7 +650,7 @@ public class PlayerActivity extends Activity {
         android.view.ViewGroup parent = (android.view.ViewGroup) seekBar.getParent();
         if (wide && parent != btnRow) {
             if (parent != null) parent.removeView(seekBar);
-            btnRow.addView(seekBar, 3, new LinearLayout.LayoutParams(0,
+            btnRow.addView(seekBar, 1, new LinearLayout.LayoutParams(0,
                     LinearLayout.LayoutParams.WRAP_CONTENT, 1));
             seekRow.setVisibility(View.GONE);
         } else if (!wide && parent != seekRow) {
