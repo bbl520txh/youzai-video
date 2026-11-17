@@ -358,22 +358,7 @@ public class PlayerActivity extends Activity {
                         pokeControls();
                         return true;
                     }
-                    if (e.getAction() == android.view.MotionEvent.ACTION_UP && player != null) {
-                        // Hongguo-style vertical swipe: up = next episode,
-                        // down = previous episode.
-                        float vdy = e.getY() - downY, vdx = e.getX() - downX;
-                        if (Math.abs(vdy) > 130 && Math.abs(vdy) > Math.abs(vdx) * 1.6f) {
-                            if (vdy < 0) {
-                                if (player.hasNextMediaItem()) { player.seekToNextMediaItem(); flashEpisode("⬆ 下一集"); }
-                                else flashEpisode("已经是最后一集了");
-                            } else {
-                                if (player.hasPreviousMediaItem()) { player.seekToPreviousMediaItem(); flashEpisode("⬇ 上一集"); }
-                                else flashEpisode("已经是第一集了");
-                            }
-                            pokeControls();
-                            return true;
-                        }
-                    }
+
                     if (e.getAction() == android.view.MotionEvent.ACTION_UP
                             && System.currentTimeMillis() - downTime < 300
                             && Math.abs(e.getX() - downX) < 16 && Math.abs(e.getY() - downY) < 16) {
@@ -626,12 +611,6 @@ public class PlayerActivity extends Activity {
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
             seekRow.setVisibility(View.VISIBLE);
         }
-    }
-
-    private void flashEpisode(String text) {
-        gestureView.setText(text);
-        gestureView.setVisibility(View.VISIBLE);
-        gestureView.postDelayed(() -> { if (!seeking) gestureView.setVisibility(View.GONE); }, 900);
     }
 
     private void pokeControls() {
