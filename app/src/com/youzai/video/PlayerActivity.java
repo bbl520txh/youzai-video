@@ -56,6 +56,8 @@ public class PlayerActivity extends Activity {
     private ProgressBar spinner;
     private final Handler ui = new Handler();
     private boolean controlsShown = true;
+    private long lastTapUp = 0;
+    private final Runnable pendingTapToggle = () -> { showControls(!controlsShown); pokeControls(); };
     private boolean scrubbing = false;
 
     // resize modes: 0 fit, 1 fill(crop), 2 stretch, 3 force 16:9, 4 force 4:3
@@ -192,9 +194,6 @@ public class PlayerActivity extends Activity {
             pokeControls();
         });
         btnRow.addView(prev);
-        playBtn = mkBtn("⏸");
-        playBtn.setOnClickListener(v -> togglePlay());
-        btnRow.addView(playBtn);
         Button next = mkBtn("⏭");
         next.setOnClickListener(v -> {
             if (player != null && player.hasNextMediaItem()) player.seekToNextMediaItem();
@@ -279,6 +278,16 @@ public class PlayerActivity extends Activity {
         root.addView(bottom, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT,
                 Gravity.BOTTOM));
+
+        // Big center play/pause button (moved out of the bottom bar).
+        playBtn = mkBtn("⏸");
+        playBtn.setTextSize(30);
+        android.graphics.drawable.GradientDrawable oval = new android.graphics.drawable.GradientDrawable();
+        oval.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+        oval.setColor(0x66000000);
+        playBtn.setBackground(oval);
+        playBtn.setOnClickListener(v -> { togglePlay(); pokeControls(); });
+        root.addView(playBtn, new FrameLayout.LayoutParams(200, 200, Gravity.CENTER));
 
         gestureView = new TextView(this);
         gestureView.setTextColor(0xFFFFFFFF);
@@ -368,8 +377,19 @@ public class PlayerActivity extends Activity {
                     if (e.getAction() == android.view.MotionEvent.ACTION_UP
                             && System.currentTimeMillis() - downTime < 300
                             && Math.abs(e.getX() - downX) < 16 && Math.abs(e.getY() - downY) < 16) {
-                        showControls(!controlsShown);
-                        pokeControls();
+                        long now = System.currentTimeMillis();
+                        if (now - lastTapUp < 350) {
+                            // Double tap: play/pause.
+                            ui.removeCallbacks(pendingTapToggle);
+                            lastTapUp = 0;
+                            togglePlay();
+                        } else {
+                            // Single tap toggles the controls, but wait a
+                            // beat in case it turns into a double tap.
+                            lastTapUp = now;
+                            ui.removeCallbacks(pendingTapToggle);
+                            ui.postDelayed(pendingTapToggle, 350);
+                        }
                         return true;
                     }
                     return false;
@@ -535,6 +555,7 @@ public class PlayerActivity extends Activity {
         controlsShown = show;
         topBar.setVisibility(show ? View.VISIBLE : View.GONE);
         bottomBar.setVisibility(show ? View.VISIBLE : View.GONE);
+        if (playBtn != null) playBtn.setVisibility(show ? View.VISIBLE : View.GONE);
         if (!show) immersive();
     }
 
@@ -596,7 +617,7 @@ public class PlayerActivity extends Activity {
         android.view.ViewGroup parent = (android.view.ViewGroup) seekBar.getParent();
         if (wide && parent != btnRow) {
             if (parent != null) parent.removeView(seekBar);
-            btnRow.addView(seekBar, 4, new LinearLayout.LayoutParams(0,
+            btnRow.addView(seekBar, 3, new LinearLayout.LayoutParams(0,
                     LinearLayout.LayoutParams.WRAP_CONTENT, 1));
             seekRow.setVisibility(View.GONE);
         } else if (!wide && parent != seekRow) {
