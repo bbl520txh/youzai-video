@@ -43,6 +43,7 @@ public class PlayerActivity extends Activity {
     private FrameLayout root;
     private SurfaceView surface;
     private View topBar, bottomBar;
+    private LinearLayout seekRow, btnRow;
     private TextView titleView, timeView, msgView, gestureView, resView;
     private Button playBtn, speedBtn, modeBtn, fsBtn;
     private TextView unlockBtn;
@@ -160,37 +161,49 @@ public class PlayerActivity extends Activity {
                 Gravity.TOP));
 
         LinearLayout bottom = new LinearLayout(this);
-        bottom.setOrientation(LinearLayout.HORIZONTAL);
-        bottom.setGravity(Gravity.CENTER_VERTICAL);
+        bottom.setOrientation(LinearLayout.VERTICAL);
         bottom.setBackgroundColor(0xB3000000);
-        bottom.setPadding(8, 8, 8, 8);
+        bottom.setPadding(8, 4, 8, 4);
+        // Seekbar gets its own full-width row in narrow layouts (portrait
+        // fullscreen / small window); it moves into the button row only
+        // for wide landscape fullscreen. placeSeekBar() does the moving.
+        seekRow = new LinearLayout(this);
+        seekRow.setOrientation(LinearLayout.HORIZONTAL);
+        seekRow.setPadding(4, 0, 4, 0);
+        bottom.addView(seekRow, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        btnRow = new LinearLayout(this);
+        btnRow.setOrientation(LinearLayout.HORIZONTAL);
+        btnRow.setGravity(Gravity.CENTER_VERTICAL);
+        bottom.addView(btnRow, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
         Button prev = mkBtn("⏮");
         prev.setOnClickListener(v -> {
             if (player != null && player.hasPreviousMediaItem()) player.seekToPreviousMediaItem();
             else Toast.makeText(this, "已经是第一集", Toast.LENGTH_SHORT).show();
             pokeControls();
         });
-        bottom.addView(prev);
+        btnRow.addView(prev);
         playBtn = mkBtn("⏸");
         playBtn.setOnClickListener(v -> togglePlay());
-        bottom.addView(playBtn);
+        btnRow.addView(playBtn);
         Button next = mkBtn("⏭");
         next.setOnClickListener(v -> {
             if (player != null && player.hasNextMediaItem()) player.seekToNextMediaItem();
             else Toast.makeText(this, "已经是最后一集", Toast.LENGTH_SHORT).show();
             pokeControls();
         });
-        bottom.addView(next);
+        btnRow.addView(next);
         timeView = new TextView(this);
         timeView.setTextColor(0xFFDDDDDD);
         timeView.setTextSize(12);
         timeView.setText("00:00 / 00:00");
-        bottom.addView(timeView);
+        btnRow.addView(timeView);
         resView = new TextView(this);
         resView.setTextColor(0xFF999999);
         resView.setTextSize(11);
         resView.setText(" -- ");
-        bottom.addView(resView);
+        btnRow.addView(resView);
         seekBar = new SeekBar(this);
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
@@ -216,8 +229,8 @@ public class PlayerActivity extends Activity {
                 pokeControls();
             }
         });
-        bottom.addView(seekBar, new LinearLayout.LayoutParams(0,
-                LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+        seekRow.addView(seekBar, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
         speedBtn = mkBtn("1.0x");
         speedBtn.setTextSize(14);
         speedBtn.setOnClickListener(v -> {
@@ -227,7 +240,7 @@ public class PlayerActivity extends Activity {
             speedBtn.setText(speedLabel(s));
             pokeControls();
         });
-        bottom.addView(speedBtn);
+        btnRow.addView(speedBtn);
         modeBtn = mkBtn(MODE_NAMES[resizeMode]);
         modeBtn.setTextSize(14);
         modeBtn.setOnClickListener(v -> {
@@ -239,7 +252,7 @@ public class PlayerActivity extends Activity {
             Toast.makeText(this, "画面比例：" + MODE_NAMES[resizeMode], Toast.LENGTH_SHORT).show();
             pokeControls();
         });
-        bottom.addView(modeBtn);
+        btnRow.addView(modeBtn);
         bottomBar = bottom;
         root.addView(bottom, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT,
@@ -344,6 +357,7 @@ public class PlayerActivity extends Activity {
             }
         });
         setContentView(root);
+        root.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, orr, ob) -> placeSeekBar());
         setFullscreen(false);
         updateTitle();
 
@@ -549,6 +563,26 @@ public class PlayerActivity extends Activity {
         unlockBtn.setVisibility(View.VISIBLE);
         unlockBtn.setAlpha(1f);
         ui.postDelayed(() -> { if (locked) unlockBtn.setAlpha(0.55f); }, 1200);
+    }
+
+    // Wide landscape fullscreen keeps the classic single row; everything
+    // else (portrait fullscreen, small window) gives the seekbar its own
+    // full-width row so it isn't squeezed by the buttons.
+    private void placeSeekBar() {
+        if (seekBar == null || seekRow == null || btnRow == null) return;
+        boolean wide = fullscreen && root.getWidth() > root.getHeight();
+        android.view.ViewGroup parent = (android.view.ViewGroup) seekBar.getParent();
+        if (wide && parent != btnRow) {
+            if (parent != null) parent.removeView(seekBar);
+            btnRow.addView(seekBar, 5, new LinearLayout.LayoutParams(0,
+                    LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+            seekRow.setVisibility(View.GONE);
+        } else if (!wide && parent != seekRow) {
+            if (parent != null) parent.removeView(seekBar);
+            seekRow.addView(seekBar, new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+            seekRow.setVisibility(View.VISIBLE);
+        }
     }
 
     private void flashEpisode(String text) {
