@@ -237,22 +237,41 @@ public class PlayerActivity extends Activity {
         speedBtn = mkBtn("1.0x");
         speedBtn.setTextSize(14);
         speedBtn.setOnClickListener(v -> {
-            speedIdx = (speedIdx + 1) % SPEEDS.length;
-            float s = SPEEDS[speedIdx];
-            if (player != null) player.setPlaybackSpeed(s);
-            speedBtn.setText(speedLabel(s));
+            android.widget.PopupMenu pm = new android.widget.PopupMenu(this, v);
+            pm.getMenu().setGroupCheckable(0, true, true);
+            for (int i = 0; i < SPEEDS.length; i++) {
+                pm.getMenu().add(0, i, i, speedLabel(SPEEDS[i])).setChecked(i == speedIdx);
+            }
+            pm.setOnMenuItemClickListener(item -> {
+                speedIdx = item.getItemId();
+                float s = SPEEDS[speedIdx];
+                if (player != null) player.setPlaybackSpeed(s);
+                speedBtn.setText(speedLabel(s));
+                pokeControls();
+                return true;
+            });
+            pm.show();
             pokeControls();
         });
         btnRow.addView(speedBtn);
         modeBtn = mkBtn(MODE_NAMES[resizeMode]);
         modeBtn.setTextSize(14);
         modeBtn.setOnClickListener(v -> {
-            resizeMode = (resizeMode + 1) % MODE_NAMES.length;
-            modeBtn.setText(MODE_NAMES[resizeMode]);
-            getSharedPreferences("yzv_player", MODE_PRIVATE).edit()
-                    .putInt("resize_mode", resizeMode).apply();
-            applyResize();
-            Toast.makeText(this, "画面比例：" + MODE_NAMES[resizeMode], Toast.LENGTH_SHORT).show();
+            android.widget.PopupMenu pm = new android.widget.PopupMenu(this, v);
+            pm.getMenu().setGroupCheckable(0, true, true);
+            for (int i = 0; i < MODE_NAMES.length; i++) {
+                pm.getMenu().add(0, i, i, MODE_NAMES[i]).setChecked(i == resizeMode);
+            }
+            pm.setOnMenuItemClickListener(item -> {
+                resizeMode = item.getItemId();
+                modeBtn.setText(MODE_NAMES[resizeMode]);
+                getSharedPreferences("yzv_player", MODE_PRIVATE).edit()
+                        .putInt("resize_mode", resizeMode).apply();
+                applyResize();
+                pokeControls();
+                return true;
+            });
+            pm.show();
             pokeControls();
         });
         btnRow.addView(modeBtn);
