@@ -142,11 +142,19 @@ public class PlayerActivity extends Activity {
         Button back = mkBtn("←");
         back.setOnClickListener(v -> finishWithResult());
         top.addView(back);
+        LinearLayout titleCol = new LinearLayout(this);
+        titleCol.setOrientation(LinearLayout.VERTICAL);
         titleView = new TextView(this);
         titleView.setTextColor(0xFFFFFFFF);
         titleView.setTextSize(15);
         titleView.setSingleLine(true);
-        top.addView(titleView, new LinearLayout.LayoutParams(0,
+        titleCol.addView(titleView);
+        resView = new TextView(this);
+        resView.setTextColor(0xFF999999);
+        resView.setTextSize(11);
+        resView.setText("--");
+        titleCol.addView(resView);
+        top.addView(titleCol, new LinearLayout.LayoutParams(0,
                 LinearLayout.LayoutParams.WRAP_CONTENT, 1));
         fsBtn = mkBtn("全屏");
         fsBtn.setTextSize(14);
@@ -199,11 +207,6 @@ public class PlayerActivity extends Activity {
         timeView.setTextSize(12);
         timeView.setText("00:00 / 00:00");
         btnRow.addView(timeView);
-        resView = new TextView(this);
-        resView.setTextColor(0xFF999999);
-        resView.setTextSize(11);
-        resView.setText(" -- ");
-        btnRow.addView(resView);
         seekBar = new SeekBar(this);
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
@@ -404,7 +407,7 @@ public class PlayerActivity extends Activity {
                     int m = Math.min(size.width, size.height);
                     String tier = m >= 2000 ? " · 4K" : m >= 1000 ? " · 1080P"
                             : m >= 700 ? " · 720P" : m >= 400 ? " · 480P" : "";
-                    resView.setText(" " + size.width + "×" + size.height + tier + " ");
+                    resView.setText(size.width + "×" + size.height + tier);
                 }
             }
 
@@ -414,7 +417,7 @@ public class PlayerActivity extends Activity {
                 readyForIndex = -1;
                 updateTitle();
                 seekBar.setProgress(0);
-                resView.setText(" -- ");
+                resView.setText("--");
             }
 
             @Override
@@ -574,7 +577,7 @@ public class PlayerActivity extends Activity {
         android.view.ViewGroup parent = (android.view.ViewGroup) seekBar.getParent();
         if (wide && parent != btnRow) {
             if (parent != null) parent.removeView(seekBar);
-            btnRow.addView(seekBar, 5, new LinearLayout.LayoutParams(0,
+            btnRow.addView(seekBar, 4, new LinearLayout.LayoutParams(0,
                     LinearLayout.LayoutParams.WRAP_CONTENT, 1));
             seekRow.setVisibility(View.GONE);
         } else if (!wide && parent != seekRow) {
