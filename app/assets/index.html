@@ -24,6 +24,12 @@
   .cats::-webkit-scrollbar { display:none; }
   .chip { flex:0 0 auto; background:#232323; color:#ccc; border:1px solid #333; border-radius:14px; padding:5px 13px; font-size:13px; }
   .chip.on { background:#1DB954; color:#fff; border-color:#1DB954; font-weight:700; }
+  .fbar { padding:8px 12px 0; }
+  .frow { display:flex; gap:8px; overflow-x:auto; padding:5px 0 1px; scrollbar-width:none; align-items:center; }
+  .frow::-webkit-scrollbar { display:none; }
+  .flabel { flex:0 0 auto; color:#999; font-size:13px; padding:5px 2px; }
+  .fnote { color:#8a8a8a; font-size:12.5px; padding:5px 2px; }
+  .finfo { color:#999; font-size:12.5px; }
   .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; padding:12px; }
   .card { background:#1b1b1b; border-radius:10px; overflow:hidden; }
   .card .pic { position:relative; aspect-ratio:3/4.2; background:#262626; }
@@ -89,6 +95,13 @@
 
 <div id="viewHome">
   <div class="cats" id="cats"></div>
+  <div class="fbar" id="filterBar" style="display:none">
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="chip" id="filterBtn">筛选 ▾</button>
+      <span class="finfo" id="filterInfo"></span>
+    </div>
+    <div id="filterPanel" style="display:none"></div>
+  </div>
   <div class="grid" id="grid"></div>
   <div class="hint" id="homeHint"></div>
   <button class="more" id="moreBtn" style="display:none">加载更多</button>
@@ -189,7 +202,12 @@ function apiUrl(site, params) {
   return site.api + (site.api.includes("?") ? "&" : "?") + qs;
 }
 function txtOf(parent, tag) { const el = parent.querySelector(tag); return el ? el.textContent.trim() : ""; }
-function normItem(v) { return { id: String(v.vod_id), name: v.vod_name || "", pic: v.vod_pic || "", remarks: v.vod_remarks || "" }; }
+function normItem(v) {
+  return {
+    id: String(v.vod_id), name: v.vod_name || "", pic: v.vod_pic || "", remarks: v.vod_remarks || "",
+    time: v.vod_time || "", year: v.vod_year ? String(v.vod_year) : "", cls: v.vod_class || ""
+  };
+}
 function parseEps(str) {
   return String(str || "").split("#").map((seg, i) => {
     const p = seg.indexOf("$");
@@ -226,7 +244,8 @@ async function cmsList(site, opt) {
   const listEl = doc.querySelector("list");
   const items = Array.from(doc.querySelectorAll("list > video")).map(v => ({
     id: txtOf(v, "id"), name: txtOf(v, "name"), pic: txtOf(v, "pic"),
-    remarks: txtOf(v, "note") || txtOf(v, "state")
+    remarks: txtOf(v, "note") || txtOf(v, "state"),
+    time: txtOf(v, "last"), year: txtOf(v, "year"), cls: txtOf(v, "type")
   }));
   return { classes, items, pagecount: listEl ? (parseInt(listEl.getAttribute("pagecount") || "1", 10) || 1) : 1 };
 }
@@ -323,6 +342,7 @@ function cardHtml(item, idx) {
 async function loadHome(reset) {
   if (!curSite) {
     $("grid").innerHTML = ""; $("cats").innerHTML = ""; $("moreBtn").style.display = "none";
+    $("filterBar").style.display = "none";
     $("homeHint").innerHTML = configs.length
       ? "当前数据源里没有能用的站点（只支持 TVBox 配置里的 JSON / XML 站点，jar 蜘蛛站点用不了）。"
       : "还没有数据源。<br><br>点右上角 <b>「源」</b>，把你的 TVBox 配置地址粘贴进来导入，<br>就能选站看片了。";
@@ -330,7 +350,11 @@ async function loadHome(reset) {
   }
   if (homeState.loading) return;
   homeState.loading = true;
-  if (reset) { homeState.pg = 1; gridItems = []; $("grid").innerHTML = ""; }
+  if (reset) {
+    homeState.pg = 1; gridItems = []; $("grid").innerHTML = "";
+    filt = { date: "all", year: "all", cls: "all" }; filterOpen = false;
+    $("filterPanel").style.display = "none"; $("filterBtn").textContent = "筛选 ▾";
+  }
   $("homeHint").textContent = "加载中…";
   try {
     let r;
@@ -340,43 +364,158 @@ async function loadHome(reset) {
     homeState.pagecount = r.pagecount || 1;
     const start = gridItems.length;
     gridItems = gridItems.concat(r.items);
-    $("grid").insertAdjacentHTML("beforeend", r.items.map((it, i) => cardHtml(it, start + i)).join(""));
-    fillPics(r.items, start);
-    $("homeHint").innerHTML = gridItems.length ? "" :
-      '<span class="err">没有找到内容</span> — 换个分类或关键词试试。';
+    if (anyFilter()) renderGrid();
+    else $("grid").insertAdjacentHTML("beforeend", r.items.map((it, i) => cardHtml(it, start + i)).join(""));
+    fillMeta(r.items, start);
+    if (!gridItems.length) {
+      $("homeHint").innerHTML = '<span class="err">没有找到内容</span> — 换个分类或关键词试试。';
+    } else if (anyFilter() && !gridItems.some(passFilter)) {
+      $("homeHint").innerHTML = '已加载 ' + gridItems.length + ' 部，这个筛选下暂时没有 — 点「加载更多」扩大范围，或清除筛选。';
+    } else {
+      $("homeHint").innerHTML = "";
+    }
     $("moreBtn").style.display = homeState.pg < homeState.pagecount ? "" : "none";
   } catch (e) {
     $("homeHint").innerHTML = '<span class="err">加载失败：' + esc(e.message || e) + "</span><br>可能是这个站点暂时连不上，换个站点或稍后再试。";
     $("moreBtn").style.display = "none";
   }
   homeState.loading = false;
+  syncFilterBar();
 }
 
-/* These stations omit vod_pic from list responses; posters live only in
-   detail data. One batched detail call (ids=a,b,c) fills a whole page. */
-async function fillPics(items, start) {
+/* List responses are thin: ac=list carries no poster and no year/class.
+   One batched detail call (ids=a,b,c) fills a whole page: posters plus
+   the fields the filters need (vod_year / vod_class / vod_time). */
+async function fillMeta(items, start) {
+  const site = curSite;
   try {
-    if (!curSite || curSite.type !== 1) return;
-    const missing = [];
-    items.forEach((it, i) => { if (!it.pic) missing.push({ it: it, idx: start + i }); });
-    if (!missing.length) return;
-    const ids = missing.slice(0, 30).map(m => m.it.id).join(",");
-    const txt = await httpGet(apiUrl(curSite, { ac: "detail", ids: ids }));
+    if (!site || site.type !== 1 || !items.length) return;
+    const ids = items.slice(0, 30).map(it => it.id).join(",");
+    const txt = await httpGet(apiUrl(site, { ac: "detail", ids: ids }));
+    if (site !== curSite) return;
     const d = JSON.parse(txt);
     const byId = {};
-    (d.list || []).forEach(v => { byId[String(v.vod_id)] = v.vod_pic || ""; });
-    missing.forEach(m => {
-      const pic = byId[String(m.it.id)];
-      if (!pic) return;
-      m.it.pic = pic;
-      const card = $("grid").querySelector('.card[data-idx="' + m.idx + '"] .pic');
-      if (card && !card.querySelector("img")) {
-        card.insertAdjacentHTML("afterbegin",
-          '<img loading="lazy" referrerpolicy="no-referrer" src="' + esc(pic) + '" onerror="this.remove()">');
+    (d.list || []).forEach(v => { byId[String(v.vod_id)] = v; });
+    let changed = false;
+    items.forEach((it, i) => {
+      const v = byId[String(it.id)];
+      if (!v) return;
+      if (!it.pic && v.vod_pic) {
+        it.pic = v.vod_pic; changed = true;
+        const card = $("grid").querySelector('.card[data-idx="' + (start + i) + '"] .pic');
+        if (card && !card.querySelector("img")) {
+          card.insertAdjacentHTML("afterbegin",
+            '<img loading="lazy" referrerpolicy="no-referrer" src="' + esc(it.pic) + '" onerror="this.remove()">');
+        }
       }
+      if (!it.year && v.vod_year) { it.year = String(v.vod_year); changed = true; }
+      if (!it.cls && v.vod_class) { it.cls = v.vod_class; changed = true; }
+      if (!it.time && v.vod_time) { it.time = v.vod_time; changed = true; }
     });
-  } catch (e) { /* posters are decorative; never block the list */ }
+    if (changed) {
+      if (anyFilter()) renderGrid();
+      if (filterOpen) renderFilterPanel();
+      updateFilterInfo();
+    }
+  } catch (e) { /* posters/meta are decorative; never block the list */ }
 }
+
+/* ============ filters (list mode only) ============
+   Client-side, over the already-loaded pool. Only fields the stations
+   actually return are used: vod_time (present in ac=list), vod_year and
+   vod_class (merged from detail data by fillMeta). Hits and score are 0
+   or fabricated on these stations, so they are deliberately NOT offered. */
+let filt = { date: "all", year: "all", cls: "all" };
+let filterOpen = false;
+
+function anyFilter() { return filt.date !== "all" || filt.year !== "all" || filt.cls !== "all"; }
+function itemDay(it) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(it.time || "");
+  return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null;
+}
+function clsTags(it) {
+  return String(it.cls || "").split(/[,，、|/]/).map(s => s.trim()).filter(Boolean);
+}
+function passFilter(it) {
+  if (filt.date !== "all") {
+    const d = itemDay(it);
+    if (!d) return false;
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    start.setDate(start.getDate() - (filt.date === "today" ? 0 : filt.date === "week" ? 6 : 29));
+    if (d < start) return false;
+  }
+  if (filt.year !== "all" && String(it.year || "") !== filt.year) return false;
+  if (filt.cls !== "all" && !clsTags(it).includes(filt.cls)) return false;
+  return true;
+}
+function renderGrid() {
+  let html = "";
+  gridItems.forEach((it, i) => { if (!anyFilter() || passFilter(it)) html += cardHtml(it, i); });
+  $("grid").innerHTML = html;
+  updateFilterInfo();
+}
+function passCount() { return gridItems.reduce((n, it) => n + (passFilter(it) ? 1 : 0), 0); }
+function updateFilterInfo() {
+  $("filterInfo").textContent = anyFilter()
+    ? "符合 " + passCount() + " / 已加载 " + gridItems.length + " 部"
+    : "";
+  $("filterBtn").textContent = (anyFilter() ? "筛选（已选）" : "筛选") + (filterOpen ? " ▴" : " ▾");
+}
+function syncFilterBar() {
+  const show = !!curSite && homeState.mode === "list";
+  $("filterBar").style.display = show ? "" : "none";
+  if (show) updateFilterInfo();
+}
+function poolYears() {
+  const seen = {};
+  gridItems.forEach(it => { if (it.year) seen[it.year] = 1; });
+  return Object.keys(seen).sort((a, b) => b - a).slice(0, 10);
+}
+function poolClasses() {
+  const cnt = {};
+  gridItems.forEach(it => clsTags(it).forEach(t => { cnt[t] = (cnt[t] || 0) + 1; }));
+  return Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a]).slice(0, 14);
+}
+function chipRow(label, inner) { return '<div class="frow"><span class="flabel">' + label + "</span>" + inner + "</div>"; }
+function renderFilterPanel() {
+  const dates = [["all", "全部"], ["today", "今日上新"], ["week", "近7天"], ["month", "近30天"]];
+  let html = chipRow("日期", dates.map(d =>
+    '<button class="chip' + (filt.date === d[0] ? " on" : "") + '" data-fd="' + d[0] + '">' + d[1] + "</button>").join(""));
+  const years = poolYears();
+  html += years.length
+    ? chipRow("年代", ['<button class="chip' + (filt.year === "all" ? " on" : "") + '" data-fy="all">全部</button>']
+      .concat(years.map(y => '<button class="chip' + (filt.year === y ? " on" : "") + '" data-fy="' + esc(y) + '">' + esc(y) + "</button>")).join(""))
+    : chipRow("年代", '<span class="fnote">已加载的内容里没有年代数据</span>');
+  const classes = poolClasses();
+  html += classes.length
+    ? chipRow("题材", ['<button class="chip' + (filt.cls === "all" ? " on" : "") + '" data-fc="all">全部</button>']
+      .concat(classes.map(t => '<button class="chip' + (filt.cls === t ? " on" : "") + '" data-fc="' + esc(t) + '">' + esc(t) + "</button>")).join(""))
+    : chipRow("题材", '<span class="fnote">本站暂无题材数据，题材筛选不可用</span>');
+  html += '<div class="frow"><span class="fnote">在已加载的 ' + gridItems.length + ' 部里筛；点「加载更多」范围更大</span>'
+    + (anyFilter() ? '<button class="chip" id="fClear">清除筛选</button>' : "") + "</div>";
+  const p = $("filterPanel");
+  p.innerHTML = html;
+  p.querySelectorAll("[data-fd]").forEach(b => b.onclick = () => { filt.date = b.dataset.fd; applyFilter(); });
+  p.querySelectorAll("[data-fy]").forEach(b => b.onclick = () => { filt.year = b.dataset.fy; applyFilter(); });
+  p.querySelectorAll("[data-fc]").forEach(b => b.onclick = () => { filt.cls = b.dataset.fc; applyFilter(); });
+  const clr = $("fClear");
+  if (clr) clr.onclick = () => { filt = { date: "all", year: "all", cls: "all" }; applyFilter(); };
+}
+function applyFilter() {
+  renderGrid();
+  renderFilterPanel();
+  if (!gridItems.length) return;
+  $("homeHint").innerHTML = anyFilter() && !gridItems.some(passFilter)
+    ? '已加载 ' + gridItems.length + ' 部，这个筛选下暂时没有 — 点「加载更多」扩大范围，或清除筛选。'
+    : "";
+}
+$("filterBtn").onclick = () => {
+  filterOpen = !filterOpen;
+  $("filterPanel").style.display = filterOpen ? "" : "none";
+  if (filterOpen) renderFilterPanel();
+  updateFilterInfo();
+};
 
 $("grid").addEventListener("click", e => {
   const card = e.target.closest(".card");
@@ -603,8 +742,11 @@ function renderSrc() {
   const rst = $("cfgRestore");
   if (rst) rst.onclick = () => {
     localStorage.removeItem("yzv_nobuiltin");
-    syncBuiltin(); saveConfigs(); loadActiveConfig(); refreshSiteBtn(); renderSrc();
-    toast("内置资源已恢复");
+    syncBuiltin();
+    activeCfgId = "builtin";
+    saveConfigs(); loadActiveConfig(); refreshSiteBtn(); renderSrc();
+    homeState = { mode: "list", t: "", pg: 1, pagecount: 1, wd: "", loading: false };
+    toast("内置资源已恢复，已切换到它");
   };
 }
 
