@@ -43,10 +43,14 @@ public class PlayerActivity extends Activity {
     private FrameLayout root;
     private SurfaceView surface;
     private View topBar, bottomBar;
-    private LinearLayout seekRow, btnRow, centerRow;
-    private TextView titleView, timeView, msgView, gestureView, resView;
-    private Button playBtn, speedBtn, modeBtn, fsBtn;
+    private LinearLayout seekRow, menuRow, centerRow, sideBar;
+    private TextView titleView, curView, totalView, sysView, msgView, gestureView, resView;
+    private Button playBtn, speedBtn, modeBtn, fsBtn, repeatBtn;
     private TextView unlockBtn;
+    private View epPanel;
+    private android.widget.GridLayout epGrid;
+    private boolean repeatOne = false;
+    private boolean manualOrient = false;
     private boolean fullscreen = false;
     private float downX, downY;
     private long downTime;
@@ -78,6 +82,10 @@ public class PlayerActivity extends Activity {
     private final Map<Integer, Integer> positions = new HashMap<>();
 
     private final Runnable hideControls = () -> {
+        if (epPanel != null && epPanel.getVisibility() == View.VISIBLE) {
+            pokeControls();
+            return;
+        }
         if (player != null && player.isPlaying()) showControls(false);
     };
     private final Runnable tick = new Runnable() {
@@ -90,7 +98,9 @@ public class PlayerActivity extends Activity {
                     if (dur > 0) {
                         seekBar.setMax((int) Math.min(dur, Integer.MAX_VALUE));
                         seekBar.setProgress((int) Math.min(pos, Integer.MAX_VALUE));
-                        timeView.setText(fmt((int) pos) + " / " + fmt((int) dur));
+                        curView.setText(fmt((int) pos));
+                        totalView.setText(fmt((int) dur));
+                        updateSys();
                         if (pos > 0) positions.put(index, (int) pos);
                     }
                 }
@@ -142,10 +152,7 @@ public class PlayerActivity extends Activity {
         top.setOrientation(LinearLayout.HORIZONTAL);
         top.setGravity(Gravity.CENTER_VERTICAL);
         top.setBackgroundColor(0xB3000000);
-        top.setPadding(8, 8, 16, 8);
-        Button back = mkBtn("←");
-        back.setOnClickListener(v -> finishWithResult());
-        top.addView(back);
+        top.setPadding(16, 8, 16, 8);
         LinearLayout titleCol = new LinearLayout(this);
         titleCol.setOrientation(LinearLayout.VERTICAL);
         titleView = new TextView(this);
@@ -160,13 +167,11 @@ public class PlayerActivity extends Activity {
         titleCol.addView(resView);
         top.addView(titleCol, new LinearLayout.LayoutParams(0,
                 LinearLayout.LayoutParams.WRAP_CONTENT, 1));
-        fsBtn = mkBtn("全屏");
-        fsBtn.setTextSize(14);
-        fsBtn.setOnClickListener(v -> setFullscreen(!fullscreen));
-        top.addView(fsBtn);
-        Button lockBtn = mkBtn("🔒");
-        lockBtn.setOnClickListener(v -> setLocked(true));
-        top.addView(lockBtn);
+        sysView = new TextView(this);
+        sysView.setTextColor(0xFFDDDDDD);
+        sysView.setTextSize(11);
+        sysView.setGravity(Gravity.END);
+        top.addView(sysView);
         topBar = top;
         root.addView(top, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT,
@@ -176,31 +181,29 @@ public class PlayerActivity extends Activity {
         bottom.setOrientation(LinearLayout.VERTICAL);
         bottom.setBackgroundColor(0xB3000000);
         bottom.setPadding(8, 4, 8, 4);
-        // Seekbar gets its own full-width row in narrow layouts (portrait
-        // fullscreen / small window); it moves into the button row only
-        // for wide landscape fullscreen. placeSeekBar() does the moving.
+        // OK-style bottom bar: [current time] seekbar [total time] on one
+        // row, then a text menu row (speed / resize / refresh / repeat /
+        // fullscreen / episodes).
         seekRow = new LinearLayout(this);
         seekRow.setOrientation(LinearLayout.HORIZONTAL);
+        seekRow.setGravity(Gravity.CENTER_VERTICAL);
         seekRow.setPadding(4, 0, 4, 0);
         bottom.addView(seekRow, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-        btnRow = new LinearLayout(this);
-        btnRow.setOrientation(LinearLayout.HORIZONTAL);
-        btnRow.setGravity(Gravity.CENTER_VERTICAL);
-        bottom.addView(btnRow, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-        timeView = new TextView(this);
-        timeView.setTextColor(0xFFDDDDDD);
-        timeView.setTextSize(12);
-        timeView.setText("00:00 / 00:00");
-        btnRow.addView(timeView);
+        curView = new TextView(this);
+        curView.setTextColor(0xFFFFFFFF);
+        curView.setTextSize(13);
+        curView.setText("00:00");
+        seekRow.addView(curView, new LinearLayout.LayoutParams(170,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
         seekBar = new SeekBar(this);
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar sb, int progress, boolean fromUser) {
                 if (fromUser && player != null) {
                     long dur = player.getDuration();
-                    timeView.setText(fmt(progress) + " / " + fmt((int) Math.max(dur, 0)));
+                    curView.setText(fmt(progress));
+                    totalView.setText(fmt((int) Math.max(dur, 0)));
                 }
             }
 
@@ -219,10 +222,22 @@ public class PlayerActivity extends Activity {
                 pokeControls();
             }
         });
-        seekRow.addView(seekBar, new LinearLayout.LayoutParams(
+        seekRow.addView(seekBar, new LinearLayout.LayoutParams(0,
+                LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+        totalView = new TextView(this);
+        totalView.setTextColor(0xFFFFFFFF);
+        totalView.setTextSize(13);
+        totalView.setGravity(Gravity.END);
+        totalView.setText("00:00");
+        seekRow.addView(totalView, new LinearLayout.LayoutParams(170,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+        menuRow = new LinearLayout(this);
+        menuRow.setOrientation(LinearLayout.HORIZONTAL);
+        menuRow.setGravity(Gravity.CENTER_VERTICAL);
+        bottom.addView(menuRow, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-        speedBtn = mkBtn("1.0x");
-        speedBtn.setTextSize(14);
+        speedBtn = mkBtn(speedText(SPEEDS[speedIdx]));
+        speedBtn.setTextSize(13);
         speedBtn.setOnClickListener(v -> {
             android.widget.PopupMenu pm = new android.widget.PopupMenu(this, v);
             pm.getMenu().setGroupCheckable(0, true, true);
@@ -233,16 +248,16 @@ public class PlayerActivity extends Activity {
                 speedIdx = item.getItemId();
                 float s = SPEEDS[speedIdx];
                 if (player != null) player.setPlaybackSpeed(s);
-                speedBtn.setText(speedLabel(s));
+                speedBtn.setText(speedText(s));
                 pokeControls();
                 return true;
             });
             pm.show();
             pokeControls();
         });
-        btnRow.addView(speedBtn);
+        menuRow.addView(speedBtn);
         modeBtn = mkBtn(MODE_NAMES[resizeMode]);
-        modeBtn.setTextSize(14);
+        modeBtn.setTextSize(13);
         modeBtn.setOnClickListener(v -> {
             android.widget.PopupMenu pm = new android.widget.PopupMenu(this, v);
             pm.getMenu().setGroupCheckable(0, true, true);
@@ -261,7 +276,33 @@ public class PlayerActivity extends Activity {
             pm.show();
             pokeControls();
         });
-        btnRow.addView(modeBtn);
+        menuRow.addView(modeBtn);
+        Button refreshBtn = mkBtn("刷新");
+        refreshBtn.setTextSize(13);
+        refreshBtn.setOnClickListener(v -> { refreshPlayer(); pokeControls(); });
+        menuRow.addView(refreshBtn);
+        repeatBtn = mkBtn("循环");
+        repeatBtn.setTextSize(13);
+        repeatBtn.setOnClickListener(v -> {
+            repeatOne = !repeatOne;
+            if (player != null) player.setRepeatMode(repeatOne
+                    ? Player.REPEAT_MODE_ONE : Player.REPEAT_MODE_OFF);
+            repeatBtn.setTextColor(repeatOne ? 0xFFFFD54F : 0xFFFFFFFF);
+            Toast.makeText(this, repeatOne ? "单集循环开" : "单集循环关",
+                    Toast.LENGTH_SHORT).show();
+            pokeControls();
+        });
+        menuRow.addView(repeatBtn);
+        menuRow.addView(new View(this), new LinearLayout.LayoutParams(0,
+                LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+        fsBtn = mkBtn("全屏");
+        fsBtn.setTextSize(13);
+        fsBtn.setOnClickListener(v -> setFullscreen(!fullscreen));
+        menuRow.addView(fsBtn);
+        Button epBtn = mkBtn("选集");
+        epBtn.setTextSize(13);
+        epBtn.setOnClickListener(v -> toggleEpPanel());
+        menuRow.addView(epBtn);
         bottomBar = bottom;
         root.addView(bottom, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT,
@@ -299,6 +340,67 @@ public class PlayerActivity extends Activity {
         root.addView(centerRow, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT,
                 Gravity.CENTER));
+
+        // Right-edge vertical stack, OK-style: collapse, lock, rotate.
+        sideBar = new LinearLayout(this);
+        sideBar.setOrientation(LinearLayout.VERTICAL);
+        Button collapseBtn = mkBtn("❮");
+        collapseBtn.setTextSize(20);
+        collapseBtn.setBackground(ovalBg());
+        collapseBtn.setOnClickListener(v -> {
+            if (fullscreen) setFullscreen(false);
+            else finishWithResult();
+        });
+        sideBar.addView(collapseBtn, new LinearLayout.LayoutParams(120, 120));
+        Button sideLockBtn = mkBtn("🔒");
+        sideLockBtn.setTextSize(18);
+        sideLockBtn.setBackground(ovalBg());
+        sideLockBtn.setOnClickListener(v -> setLocked(true));
+        LinearLayout.LayoutParams sideLockLp = new LinearLayout.LayoutParams(120, 120);
+        sideLockLp.topMargin = 28;
+        sideBar.addView(sideLockBtn, sideLockLp);
+        Button rotBtn = mkBtn("🔄");
+        rotBtn.setTextSize(18);
+        rotBtn.setBackground(ovalBg());
+        rotBtn.setOnClickListener(v -> rotateScreen());
+        LinearLayout.LayoutParams rotLp = new LinearLayout.LayoutParams(120, 120);
+        rotLp.topMargin = 28;
+        sideBar.addView(rotBtn, rotLp);
+        FrameLayout.LayoutParams sideLp = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.END | Gravity.CENTER_VERTICAL);
+        sideLp.rightMargin = 16;
+        root.addView(sideBar, sideLp);
+
+        // Episode picker panel, hidden until the 选集 menu item is tapped.
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setBackgroundColor(0xF2000000);
+        panel.setPadding(24, 16, 24, 24);
+        LinearLayout panelHead = new LinearLayout(this);
+        panelHead.setOrientation(LinearLayout.HORIZONTAL);
+        panelHead.setGravity(Gravity.CENTER_VERTICAL);
+        TextView panelTitle = new TextView(this);
+        panelTitle.setText("选集");
+        panelTitle.setTextColor(0xFFFFFFFF);
+        panelTitle.setTextSize(15);
+        panelHead.addView(panelTitle, new LinearLayout.LayoutParams(0,
+                LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+        Button panelClose = mkBtn("✕");
+        panelClose.setOnClickListener(v -> toggleEpPanel());
+        panelHead.addView(panelClose);
+        panel.addView(panelHead);
+        android.widget.ScrollView epScroll = new android.widget.ScrollView(this);
+        epGrid = new android.widget.GridLayout(this);
+        epScroll.addView(epGrid, new android.view.ViewGroup.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                android.view.ViewGroup.LayoutParams.WRAP_CONTENT));
+        panel.addView(epScroll, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1));
+        epPanel = panel;
+        epPanel.setVisibility(View.GONE);
+        root.addView(epPanel, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, 900, Gravity.BOTTOM));
 
         gestureView = new TextView(this);
         gestureView.setTextColor(0xFFFFFFFF);
@@ -425,7 +527,6 @@ public class PlayerActivity extends Activity {
             }
         });
         setContentView(root);
-        root.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, orr, ob) -> placeSeekBar());
         setFullscreen(false);
         updateTitle();
 
@@ -483,6 +584,7 @@ public class PlayerActivity extends Activity {
                 updateTitle();
                 seekBar.setProgress(0);
                 resView.setText("--");
+                if (epPanel != null && epPanel.getVisibility() == View.VISIBLE) buildEpGrid();
             }
 
             @Override
@@ -500,14 +602,7 @@ public class PlayerActivity extends Activity {
             }
         });
 
-        List<MediaItem> items = new ArrayList<>();
-        for (String u : urls) {
-            MediaItem.Builder b = new MediaItem.Builder().setUri(u);
-            if (u != null && u.toLowerCase().contains("m3u8")) {
-                b.setMimeType(MimeTypes.APPLICATION_M3U8);
-            }
-            items.add(b.build());
-        }
+        List<MediaItem> items = buildItems();
         if (!items.isEmpty()) {
             Integer startPos = positions.get(index);
             player.setMediaItems(items, index, startPos == null ? 0 : startPos);
@@ -583,12 +678,133 @@ public class PlayerActivity extends Activity {
         }
     }
 
+    private List<MediaItem> buildItems() {
+        List<MediaItem> items = new ArrayList<>();
+        for (String u : urls) {
+            MediaItem.Builder b = new MediaItem.Builder().setUri(u);
+            if (u != null && u.toLowerCase().contains("m3u8")) {
+                b.setMimeType(MimeTypes.APPLICATION_M3U8);
+            }
+            items.add(b.build());
+        }
+        return items;
+    }
+
+    // Reload the current episode's stream in place (the OK player's 刷新).
+    private void refreshPlayer() {
+        if (player == null || urls.length == 0) return;
+        long pos = player.getCurrentPosition();
+        if (pos > 0) positions.put(index, (int) pos);
+        List<MediaItem> items = buildItems();
+        if (items.isEmpty()) return;
+        player.setMediaItems(items, index, Math.max(0, pos));
+        readyForIndex = index; // start position already applied
+        player.prepare();
+        player.play();
+        Toast.makeText(this, "已刷新", Toast.LENGTH_SHORT).show();
+    }
+
+    // Manual rotate from the right-edge button: enters fullscreen if
+    // needed, then flips between portrait and landscape. The manual
+    // choice wins over the aspect-based one until fullscreen exits.
+    private void rotateScreen() {
+        boolean landscape = root.getWidth() > root.getHeight();
+        manualOrient = true;
+        if (!fullscreen) setFullscreen(true);
+        setRequestedOrientation(landscape
+                ? android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                : android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+        pokeControls();
+    }
+
+    private void toggleEpPanel() {
+        if (epPanel == null) return;
+        if (epPanel.getVisibility() == View.VISIBLE) {
+            epPanel.setVisibility(View.GONE);
+            pokeControls();
+            return;
+        }
+        buildEpGrid();
+        int h = Math.min(900, Math.max(400, root.getHeight() * 3 / 5));
+        FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) epPanel.getLayoutParams();
+        if (lp.height != h) {
+            lp.height = h;
+            epPanel.setLayoutParams(lp);
+        }
+        epPanel.setVisibility(View.VISIBLE);
+        showControls(true);
+        ui.removeCallbacks(hideControls);
+    }
+
+    private void buildEpGrid() {
+        if (epGrid == null) return;
+        epGrid.removeAllViews();
+        int cols = Math.max(3, Math.min(6, root.getWidth() / 300));
+        epGrid.setColumnCount(cols);
+        for (int i = 0; i < names.length; i++) {
+            final int idx = i;
+            TextView chip = new TextView(this);
+            chip.setText(names[i]);
+            chip.setTextSize(14);
+            chip.setGravity(Gravity.CENTER);
+            chip.setPadding(8, 18, 8, 18);
+            chip.setSingleLine(true);
+            android.graphics.drawable.GradientDrawable bg =
+                    new android.graphics.drawable.GradientDrawable();
+            bg.setCornerRadius(10);
+            if (i == index) {
+                bg.setColor(0xFF8A6D00);
+                chip.setTextColor(0xFFFFD54F);
+            } else {
+                bg.setColor(0x2EFFFFFF);
+                chip.setTextColor(0xFFFFFFFF);
+            }
+            chip.setBackground(bg);
+            chip.setOnClickListener(v -> {
+                epPanel.setVisibility(View.GONE);
+                if (player != null && idx != index) player.seekToDefaultPosition(idx);
+                pokeControls();
+            });
+            android.widget.GridLayout.LayoutParams glp = new android.widget.GridLayout.LayoutParams();
+            glp.width = 0;
+            glp.columnSpec = android.widget.GridLayout.spec(idx % cols, 1f);
+            glp.rowSpec = android.widget.GridLayout.spec(idx / cols);
+            glp.setMargins(6, 6, 6, 6);
+            chip.setLayoutParams(glp);
+            epGrid.addView(chip);
+        }
+    }
+
+    private static String speedText(float s) {
+        return String.format(java.util.Locale.US, "%.2f", s);
+    }
+
+    // Top-right system readout, OK-style: battery percent over the clock.
+    private void updateSys() {
+        if (sysView == null) return;
+        String clock = new java.text.SimpleDateFormat("HH:mm", java.util.Locale.US)
+                .format(new java.util.Date());
+        int pct = -1;
+        try {
+            android.content.Intent bi = registerReceiver(null, new android.content.IntentFilter(
+                    android.content.Intent.ACTION_BATTERY_CHANGED));
+            if (bi != null) {
+                int lv = bi.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, -1);
+                int sc = bi.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, 100);
+                if (lv >= 0 && sc > 0) pct = Math.round(lv * 100f / sc);
+            }
+        } catch (Exception ignored) {
+        }
+        sysView.setText((pct >= 0 ? "🔋 " + pct + "%\n" : "") + clock);
+    }
+
     private void showControls(boolean show) {
         if (locked) show = false;
         controlsShown = show;
         topBar.setVisibility(show ? View.VISIBLE : View.GONE);
         bottomBar.setVisibility(show ? View.VISIBLE : View.GONE);
         if (centerRow != null) centerRow.setVisibility(show ? View.VISIBLE : View.GONE);
+        if (sideBar != null) sideBar.setVisibility(show ? View.VISIBLE : View.GONE);
         if (!show) immersive();
     }
 
@@ -641,26 +857,6 @@ public class PlayerActivity extends Activity {
         ui.postDelayed(() -> { if (locked) unlockBtn.setAlpha(0.55f); }, 1200);
     }
 
-    // Wide landscape fullscreen keeps the classic single row; everything
-    // else (portrait fullscreen, small window) gives the seekbar its own
-    // full-width row so it isn't squeezed by the buttons.
-    private void placeSeekBar() {
-        if (seekBar == null || seekRow == null || btnRow == null) return;
-        boolean wide = fullscreen && root.getWidth() > root.getHeight();
-        android.view.ViewGroup parent = (android.view.ViewGroup) seekBar.getParent();
-        if (wide && parent != btnRow) {
-            if (parent != null) parent.removeView(seekBar);
-            btnRow.addView(seekBar, 1, new LinearLayout.LayoutParams(0,
-                    LinearLayout.LayoutParams.WRAP_CONTENT, 1));
-            seekRow.setVisibility(View.GONE);
-        } else if (!wide && parent != seekRow) {
-            if (parent != null) parent.removeView(seekBar);
-            seekRow.addView(seekBar, new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-            seekRow.setVisibility(View.VISIBLE);
-        }
-    }
-
     // Long-press boost: hold the screen to fast-forward, release to
     // restore the user's chosen speed. Works while locked too.
     private void startBoost() {
@@ -698,7 +894,7 @@ public class PlayerActivity extends Activity {
     // Fullscreen follows the video's own shape: portrait videos (short
     // dramas) fullscreen in portrait, landscape videos in landscape.
     private void applyFsOrientation() {
-        if (!fullscreen) return;
+        if (!fullscreen || manualOrient) return;
         if (videoAspect > 0 && videoAspect < 1f) {
             setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
         } else {
@@ -710,6 +906,7 @@ public class PlayerActivity extends Activity {
     // fullscreen button expands it (and switches to landscape) on demand.
     private void setFullscreen(boolean fs) {
         fullscreen = fs;
+        if (!fs) manualOrient = false;
         WindowManager.LayoutParams lp = getWindow().getAttributes();
         lp.gravity = Gravity.CENTER;
         if (fs) {
