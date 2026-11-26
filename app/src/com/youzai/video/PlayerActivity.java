@@ -44,7 +44,7 @@ public class PlayerActivity extends Activity {
     private SurfaceView surface;
     private View topBar, bottomBar;
     private LinearLayout seekRow, menuRow, centerRow, sideBar;
-    private TextView titleView, curView, totalView, sysView, msgView, gestureView, resView;
+    private TextView titleView, timeView, sysView, msgView, gestureView, resView;
     private Button playBtn, speedBtn, modeBtn, fsBtn, repeatBtn;
     private TextView unlockBtn;
     private View epPanel;
@@ -98,8 +98,7 @@ public class PlayerActivity extends Activity {
                     if (dur > 0) {
                         seekBar.setMax((int) Math.min(dur, Integer.MAX_VALUE));
                         seekBar.setProgress((int) Math.min(pos, Integer.MAX_VALUE));
-                        curView.setText(fmt((int) pos));
-                        totalView.setText(fmt((int) dur));
+                        timeView.setText(fmt((int) pos) + " / " + fmt((int) dur));
                         updateSys();
                         if (pos > 0) positions.put(index, (int) pos);
                     }
@@ -177,24 +176,22 @@ public class PlayerActivity extends Activity {
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT,
                 Gravity.TOP));
 
-        // OK-style bottom controls: [current time] seekbar [total time]
-        // on one row, a text menu row (speed / resize / refresh / repeat /
-        // fullscreen / episodes) under it. The two rows are separate
-        // bottom-anchored children of the root: v1.19 nested them in one
-        // vertical container, which rendered split apart on the user's
-        // phone (seek row at the top of the screen, menu row in the
-        // middle), so the container is gone.
+        // Bottom controls, back to the structure that rendered fine up
+        // to v1.18: one bottom-anchored vertical container holding a
+        // seekbar-only row and a button row with a combined time label.
+        // The OK-style split rows of v1.19/v1.20 rendered scattered on
+        // the user's phone (rows at the top / middle, seekbar missing),
+        // so that experiment is reverted; the new OK actions (refresh /
+        // repeat / episode panel) stay as buttons in the button row.
+        LinearLayout bottom = new LinearLayout(this);
+        bottom.setOrientation(LinearLayout.VERTICAL);
+        bottom.setBackgroundColor(0xB3000000);
+        bottom.setPadding(8, 4, 8, 4);
         seekRow = new LinearLayout(this);
         seekRow.setOrientation(LinearLayout.HORIZONTAL);
-        seekRow.setGravity(Gravity.CENTER_VERTICAL);
-        seekRow.setBackgroundColor(0xB3000000);
-        seekRow.setPadding(12, 2, 12, 0);
-        curView = new TextView(this);
-        curView.setTextColor(0xFFFFFFFF);
-        curView.setTextSize(13);
-        curView.setText("00:00");
-        seekRow.addView(curView, new LinearLayout.LayoutParams(170,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
+        seekRow.setPadding(4, 0, 4, 0);
+        bottom.addView(seekRow, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
         seekBar = new SeekBar(this);
         // Thin OK-style seekbar. The stock MIUI seekbar renders as a
         // huge grey pill, so use a slim track (grey line, gold progress)
@@ -230,8 +227,7 @@ public class PlayerActivity extends Activity {
             public void onProgressChanged(SeekBar sb, int progress, boolean fromUser) {
                 if (fromUser && player != null) {
                     long dur = player.getDuration();
-                    curView.setText(fmt(progress));
-                    totalView.setText(fmt((int) Math.max(dur, 0)));
+                    timeView.setText(fmt(progress) + " / " + fmt((int) Math.max(dur, 0)));
                 }
             }
 
@@ -250,19 +246,18 @@ public class PlayerActivity extends Activity {
                 pokeControls();
             }
         });
-        seekRow.addView(seekBar, new LinearLayout.LayoutParams(0, 72, 1));
-        totalView = new TextView(this);
-        totalView.setTextColor(0xFFFFFFFF);
-        totalView.setTextSize(13);
-        totalView.setGravity(Gravity.END);
-        totalView.setText("00:00");
-        seekRow.addView(totalView, new LinearLayout.LayoutParams(170,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
+        seekRow.addView(seekBar, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 72));
         menuRow = new LinearLayout(this);
         menuRow.setOrientation(LinearLayout.HORIZONTAL);
         menuRow.setGravity(Gravity.CENTER_VERTICAL);
-        menuRow.setBackgroundColor(0xB3000000);
-        menuRow.setPadding(12, 0, 12, 6);
+        bottom.addView(menuRow, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        timeView = new TextView(this);
+        timeView.setTextColor(0xFFDDDDDD);
+        timeView.setTextSize(12);
+        timeView.setText("00:00 / 00:00");
+        menuRow.addView(timeView);
         speedBtn = mkBtn(speedText(SPEEDS[speedIdx]));
         speedBtn.setTextSize(13);
         speedBtn.setOnClickListener(v -> {
@@ -320,8 +315,6 @@ public class PlayerActivity extends Activity {
             pokeControls();
         });
         menuRow.addView(repeatBtn);
-        menuRow.addView(new View(this), new LinearLayout.LayoutParams(0,
-                LinearLayout.LayoutParams.WRAP_CONTENT, 1));
         fsBtn = mkBtn("全屏");
         fsBtn.setTextSize(13);
         fsBtn.setOnClickListener(v -> setFullscreen(!fullscreen));
@@ -330,23 +323,10 @@ public class PlayerActivity extends Activity {
         epBtn.setTextSize(13);
         epBtn.setOnClickListener(v -> toggleEpPanel());
         menuRow.addView(epBtn);
-        root.addView(menuRow, new FrameLayout.LayoutParams(
+        bottomBar = bottom;
+        root.addView(bottom, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT,
                 Gravity.BOTTOM));
-        FrameLayout.LayoutParams seekLp = new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT,
-                Gravity.BOTTOM);
-        seekLp.bottomMargin = 104; // refined to the menu row's real height below
-        root.addView(seekRow, seekLp);
-        menuRow.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, orr, ob) -> {
-            int h = b - t;
-            if (h <= 0) return;
-            FrameLayout.LayoutParams lp2 = (FrameLayout.LayoutParams) seekRow.getLayoutParams();
-            if (lp2 != null && lp2.bottomMargin != h) {
-                lp2.bottomMargin = h;
-                seekRow.setLayoutParams(lp2);
-            }
-        });
 
         // Center control cluster: prev / play-pause / next in one row.
         centerRow = new LinearLayout(this);
@@ -842,8 +822,7 @@ public class PlayerActivity extends Activity {
         if (locked) show = false;
         controlsShown = show;
         topBar.setVisibility(show ? View.VISIBLE : View.GONE);
-        seekRow.setVisibility(show ? View.VISIBLE : View.GONE);
-        menuRow.setVisibility(show ? View.VISIBLE : View.GONE);
+        bottomBar.setVisibility(show ? View.VISIBLE : View.GONE);
         if (centerRow != null) centerRow.setVisibility(show ? View.VISIBLE : View.GONE);
         if (sideBar != null) sideBar.setVisibility(show ? View.VISIBLE : View.GONE);
         if (!show) immersive();
